@@ -1,7 +1,7 @@
 use std::{
     time::Instant,
     path::Path,
-    fs::File,
+    fs::{self, File},
     io::Read,
 };
 use glium::{
@@ -18,6 +18,14 @@ static WINDOW_TITLE: &str = "Rusty Ships";
 static MODEL_PATH:   &str = "./res/assets/z23/";
 
 fn main() {
+    let shader_path = Path::new("./src/");
+    let vert_shader_src =
+        fs::read_to_string(shader_path.join("vert.glsl"))
+        .unwrap();
+    let frag_shader_src =
+        fs::read_to_string(shader_path.join("frag.glsl"))
+        .unwrap();
+
     let event_loop = glutin::event_loop::EventLoop::new();
     let wb =
         glutin::window::WindowBuilder::new()
@@ -42,8 +50,8 @@ fn main() {
 
     let program =
         glium::program::Program::from_source(&display,
-                                             VERT_SHADER,
-                                             FRAG_SHADER,
+                                             &vert_shader_src,
+                                             &frag_shader_src,
                                              None)
         .unwrap();
 
@@ -111,10 +119,10 @@ fn main() {
         };
 
         let mut frame = display.draw();
-        frame.clear_color(black.0,
-                          black.1,
-                          black.2,
-                          1.);
+        frame.clear_color(0.,
+                          0.,
+                          0.,
+                          0.);
 
         frame
         .draw(&vertex_buffer,
@@ -144,24 +152,3 @@ struct Vert {
 
 implement_vertex!(Vert, position);
 
-static VERT_SHADER: &str = r#"
-#version 330
-
-in vec2 position;
-
-void main() {
-    vec2 pos = position.xy / 10.0;
-    gl_Position = vec4(pos, 0.0, 1.0);
-}
-"#;
-
-static FRAG_SHADER: &str = r#"
-#version 330
-
-void main() {
-    gl_FragColor = vec4(0.3,
-                        0.3,
-                        0.3,
-                        1.0);
-}
-"#;
