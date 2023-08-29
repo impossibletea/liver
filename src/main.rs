@@ -136,14 +136,9 @@ fn main() {
     let program = {
         use glium::program::Program;
 
-        let shader_path = Path::new("./src/");
-        let (vert_shader_src, frag_shader_src) =
-            (fs::read_to_string(shader_path.join("vert.glsl")).unwrap(),
-             fs::read_to_string(shader_path.join("frag.glsl")).unwrap());
-
         Program::from_source(&display,
-                             &vert_shader_src,
-                             &frag_shader_src,
+                             include_str!("vert.glsl"),
+                             include_str!("frag.glsl"),
                              None).unwrap()
     };
 
