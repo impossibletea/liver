@@ -15,7 +15,7 @@ use live2d_cubism_core_sys::core as l2d;
 
 const INIT_WIDTH:          u16 = 640;
 const INIT_HEIGHT:         u16 = 480;
-const MODEL_NAME: &'static str = "qianwei_2";
+const MODEL_NAME: &'static str = "huangjiafangzhou_3";
 
 struct Part {
     vertices: Vec<Vert>,
@@ -27,6 +27,7 @@ struct Part {
     multiply_color: [f32; 4],
     texture_index: usize,
     masks: Vec<usize>,
+    //blend: glium::DrawParameters,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -143,11 +144,53 @@ fn main() {
     };
 
     let params = {
-        use glium::{DrawParameters, draw_parameters::Blend};
+        use glium::{
+            DrawParameters,
+            draw_parameters::{
+                Blend,
+                BlendingFunction,
+                LinearBlendingFactor as Factor,
+            },
+        };
+
+        let constant_value = (0., 0., 0., 0.,);
+
+        let normal_fn = BlendingFunction::Addition {
+            source: Factor::One,
+            destination: Factor::OneMinusSourceAlpha,
+        };
+
+        let normal = Blend {
+            color: normal_fn,
+            alpha: normal_fn,
+            constant_value,
+        };
+
+        let add_fn = BlendingFunction::Addition {
+            source: Factor::One,
+            destination: Factor::One,
+        };
+
+        let add = Blend {
+            color: add_fn,
+            alpha: BlendingFunction::AlwaysReplace,
+            constant_value,
+        };
+
+        let multi_fn = BlendingFunction::Addition {
+            source: Factor::DestinationColor,
+            destination: Factor::OneMinusSourceAlpha,
+        };
+
+        let multi = Blend {
+            color: multi_fn,
+            alpha: BlendingFunction::AlwaysReplace,
+            constant_value,
+        };
 
         DrawParameters {
-        blend: Blend::alpha_blending(),
-        .. Default::default()
+            blend: Blend::alpha_blending(),
+            .. Default::default()
         }
     };
 
@@ -226,13 +269,6 @@ fn main() {
                        &params).unwrap();
         }
 
-        //(0..vertex_buffers.len())
-        //.into_iter()
-        //.for_each(|i| frame.draw(&vertex_buffers[i],
-        //              &index_buffers[i],
-        //              &program,
-        //              &uniforms,
-        //              &params).unwrap());
         frame.finish().unwrap();
 
         match event {
