@@ -1,7 +1,7 @@
 use std::{
     io::Read,
     path::Path,
-    fs::{self, File},
+    fs::File,
 };
 use image;
 use glium::{
@@ -15,7 +15,7 @@ use live2d_cubism_core_sys::core as l2d;
 
 const INIT_WIDTH:          u16 = 640;
 const INIT_HEIGHT:         u16 = 480;
-const MODEL_NAME: &'static str = "huangjiafangzhou_3";
+const MODEL_NAME: &'static str = "wuerlixi_2";
 
 struct Part {
     vertices: Vec<Vert>,
@@ -27,7 +27,7 @@ struct Part {
     multiply_color: [f32; 4],
     texture_index: usize,
     masks: Vec<usize>,
-    //blend: glium::DrawParameters,
+    blend: glium::draw_parameters::Blend,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -41,6 +41,13 @@ implement_vertex!(Vert,
                   texture_uv);
 
 fn create_parts(model: &l2d::Model) -> Vec<Part> {
+    use glium::draw_parameters::{
+        Blend,
+        BlendingFunction,
+        LinearBlendingFactor as Factor,
+    };
+    use l2d::ConstantDrawableFlags as Flag;
+
     // STATIC PARTS
     let texture_uvs_set: Vec<Vec<[f32; 2]>> =
         model.drawables
@@ -65,6 +72,57 @@ fn create_parts(model: &l2d::Model) -> Vec<Part> {
         .iter()
         .map(|drawable| drawable.triangle_indices.to_vec())
         .collect();
+    let constant_flags_set: Vec<_> =
+        model.drawables
+        .iter()
+        .map(|drawable| drawable.constant_flagset)
+        .collect();
+
+    let constant_value = (0., 0., 0., 0.,);
+
+    let normal_blend = {
+        let normal_fn = BlendingFunction::Addition {
+            source: Factor::SourceAlpha,
+            destination: Factor::OneMinusSourceAlpha,
+        };
+        let normal_alpha = BlendingFunction::Addition {
+            source: Factor::One,
+            destination: Factor::One,
+        };
+        Blend {
+            color: normal_fn,
+            alpha: normal_alpha,
+            constant_value,
+        }
+    };
+
+    let add_blend = {
+        let add_fn = BlendingFunction::Addition {
+            source: Factor::One,
+            destination: Factor::One,
+        };
+        Blend {
+            color: add_fn,
+            alpha: add_fn,
+            constant_value,
+        }
+    };
+
+    let multi_blend = {
+        let multi_fn = BlendingFunction::Addition {
+            source: Factor::DestinationColor,
+            destination: Factor::OneMinusSourceAlpha,
+        };
+        let multi_alpha = BlendingFunction::Addition {
+            source: Factor::Zero,
+            destination: Factor::One,
+        };
+            Blend {
+            color: multi_fn,
+            alpha: multi_alpha,
+            constant_value,
+        }
+    };
 
     // DYNAMIC PARTS
     let dynamic = model.dynamic.read();
@@ -75,7 +133,7 @@ fn create_parts(model: &l2d::Model) -> Vec<Part> {
     let screen_colors_set = dynamic.drawable_screen_colors();
     let multiply_colors_set = dynamic.drawable_multiply_colors();
 
-    let mut result: Vec<_> =
+    let mut result: Vec<Part> =
         (0..positions_set.len())
         .into_iter()
         .map(|part| {
@@ -95,6 +153,15 @@ fn create_parts(model: &l2d::Model) -> Vec<Part> {
             let masks = masks_set[part].clone();
             let sc = screen_colors_set[part];
             let mc = multiply_colors_set[part];
+            let mut blend = normal_blend;
+
+            constant_flags_set[part]
+            .into_iter()
+            .for_each(|flag| match flag {
+                //Flag::BlendAdditive       => blend = add_blend,
+                //Flag::BlendMultiplicative => blend = multi_blend,
+                _                         => {},
+            });
 
             Part {
                 vertices,
@@ -106,6 +173,7 @@ fn create_parts(model: &l2d::Model) -> Vec<Part> {
                 visibility: true,
                 screen_color: [sc.x, sc.y, sc.z, sc.w],
                 multiply_color: [mc.x, mc.y, mc.z, mc.w],
+                blend,
             }
         })
         .collect();
@@ -141,57 +209,6 @@ fn main() {
                              include_str!("vert.glsl"),
                              include_str!("frag.glsl"),
                              None).unwrap()
-    };
-
-    let params = {
-        use glium::{
-            DrawParameters,
-            draw_parameters::{
-                Blend,
-                BlendingFunction,
-                LinearBlendingFactor as Factor,
-            },
-        };
-
-        let constant_value = (0., 0., 0., 0.,);
-
-        let normal_fn = BlendingFunction::Addition {
-            source: Factor::One,
-            destination: Factor::OneMinusSourceAlpha,
-        };
-
-        let normal = Blend {
-            color: normal_fn,
-            alpha: normal_fn,
-            constant_value,
-        };
-
-        let add_fn = BlendingFunction::Addition {
-            source: Factor::One,
-            destination: Factor::One,
-        };
-
-        let add = Blend {
-            color: add_fn,
-            alpha: BlendingFunction::AlwaysReplace,
-            constant_value,
-        };
-
-        let multi_fn = BlendingFunction::Addition {
-            source: Factor::DestinationColor,
-            destination: Factor::OneMinusSourceAlpha,
-        };
-
-        let multi = Blend {
-            color: multi_fn,
-            alpha: BlendingFunction::AlwaysReplace,
-            constant_value,
-        };
-
-        DrawParameters {
-            blend: Blend::alpha_blending(),
-            .. Default::default()
-        }
     };
 
     let model_path = Path::new("./res/assets").join(MODEL_NAME);
@@ -261,6 +278,11 @@ fn main() {
             };
 
             if !parts[i].visibility {continue}
+
+            let params = &glium::DrawParameters {
+                blend: parts[i].blend,
+                .. Default::default()
+            };
 
             frame.draw(&vertex_buffers[i],
                        &index_buffers[i],
