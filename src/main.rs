@@ -13,6 +13,8 @@ use glium::{
 };
 use live2d_cubism_core_sys::core as l2d;
 
+mod motion;
+
 const INIT_WIDTH:          u16 = 640;
 const INIT_HEIGHT:         u16 = 480;
 const MODEL_NAME: &'static str = "wuerlixi_2";
@@ -50,32 +52,32 @@ fn create_parts(model: &l2d::Model) -> Vec<Part> {
 
     // STATIC PARTS
     let texture_uvs_set: Vec<Vec<[f32; 2]>> =
-        model.drawables
+        model.drawables()
         .iter()
-        .map(|drawable| drawable.vertex_uvs
+        .map(|drawable| drawable.vertex_uvs()
                         .iter()
                         .map(|uv| [uv.x, uv.y])
                         .collect())
         .collect();
     let texture_indices_set: Vec<usize> =
-        model.drawables
+        model.drawables()
         .iter()
-        .map(|drawable| drawable.texture_index)
+        .map(|drawable| drawable.texture_index())
         .collect();
     let masks_set: Vec<Vec<usize>> =
-        model.drawables
+        model.drawables()
         .iter()
-        .map(|drawable| drawable.masks.to_vec())
+        .map(|drawable| drawable.masks().to_vec())
         .collect();
     let triangle_indices_set: Vec<Vec<u16>> =
-        model.drawables
+        model.drawables()
         .iter()
-        .map(|drawable| drawable.triangle_indices.to_vec())
+        .map(|drawable| drawable.triangle_indices().to_vec())
         .collect();
     let constant_flags_set: Vec<_> =
-        model.drawables
+        model.drawables()
         .iter()
-        .map(|drawable| drawable.constant_flagset)
+        .map(|drawable| drawable.constant_flagset())
         .collect();
 
     let constant_value = (0., 0., 0., 0.,);
@@ -125,7 +127,7 @@ fn create_parts(model: &l2d::Model) -> Vec<Part> {
     };
 
     // DYNAMIC PARTS
-    let dynamic = model.dynamic.read();
+    let dynamic = model.read_dynamic();
 
     let positions_set = dynamic.drawable_vertex_position_containers();
     let opacities_set = dynamic.drawable_opacities();
@@ -215,13 +217,13 @@ fn main() {
     let model = load_model(&model_path,
                            MODEL_NAME);
 
-    let canvas = model.canvas_info;
+    let canvas = model.canvas_info();
 
     let textures = {
         let mut indices: Vec<usize> =
-            model.drawables
+            model.drawables()
             .iter()
-            .map(|drawable| drawable.texture_index)
+            .map(|drawable| drawable.texture_index())
             .collect();
         indices.sort();
         indices.dedup();
@@ -231,7 +233,7 @@ fn main() {
                       &display)
     };
 
-    let mut dynamic = model.dynamic.write();
+    let mut dynamic = model.write_dynamic();
     dynamic.reset_drawable_dynamic_flags();
     dynamic.update();
     drop(dynamic);
