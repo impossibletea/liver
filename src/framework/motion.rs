@@ -54,6 +54,50 @@ struct MotionEvent {
     value: String,
 }
 
+impl MotionData {
+
+    //                  _             _
+    //   _____   ____ _| |_   _  __ _| |_ ___
+    //  / _ \ \ / / _` | | | | |/ _` | __/ _ \
+    // |  __/\ V / (_| | | |_| | (_| | ||  __/
+    //  \___| \_/ \__,_|_|\__,_|\__,_|\__\___|
+
+    fn evaluate_curve(&self,
+                      index: usize,
+                      time: f32) -> f32 {
+        let curve = &self.curves[index];
+
+        let mut target: Option<usize> = None;
+        let total_segment_count =
+            curve.base_segment_index + curve.segment_count;
+        let mut point_position = 0;
+
+        for i in curve.base_segment_index..total_segment_count {
+            point_position = {
+                let segment = self.segments[i];
+                let a = segment.base_point_index;
+                let b = match segment.segment_type {
+                    SegmentType::Bezier => 3,
+                    _                   => 1,
+                };
+                a + b
+            };
+            if self.points[point_position].time > time {
+                target = Some(i);
+                break
+            }
+        }
+
+        match target {
+            Some(index) => {
+                let segment = self.segments[index];
+                segment.evaluate(&self.points, time)
+            }
+            None => self.points[point_position].value
+        }
+    }
+}
+
 impl MotionSegment {
     pub fn evaluate(&self, p: &Vec<MotionPoint>, t: f32) -> f32 {
         type T = SegmentType;
@@ -82,39 +126,12 @@ impl MotionSegment {
 
 }
 
-fn evaluate_curve(motion_data: &MotionData,
-                  index: usize,
-                  time: f32) -> f32 {
-    let curve = &motion_data.curves[index];
-
-    let mut target: Option<usize> = None;
-    let total_segment_count = curve.base_segment_index + curve.segment_count;
-    let mut point_position = 0;
-
-    for i in curve.base_segment_index..total_segment_count {
-        point_position = {
-            let segment = motion_data.segments[i];
-            let a = segment.base_point_index;
-            let b = match segment.segment_type {
-                SegmentType::Bezier => 3,
-                _                   => 1,
-            };
-            a + b
-        };
-        if motion_data.points[point_position].time > time {
-            target = Some(i);
-            break
-        }
-    }
-
-    match target {
-        Some(index) => {
-            let segment = motion_data.segments[index];
-            segment.evaluate(&motion_data.points, time)
-        }
-        None => motion_data.points[point_position].value
-    }
-}
+//  _       _                        _
+// (_)_ __ | |_ ___ _ __ _ __   ___ | |
+// | | '_ \| __/ _ \ '__| '_ \ / _ \| |
+// | | | | | ||  __/ |  | |_) | (_) | |
+// |_|_| |_|\__\___|_|  | .__/ \___/|_|
+//                      |_|
 
 fn lerp(a: &MotionPoint,
         b: &MotionPoint,
@@ -155,7 +172,13 @@ fn stepped(points: &[MotionPoint; 2]) -> f32 {points[0].value}
 
 fn inverse_stepped(points: &[MotionPoint; 2]) -> f32 {points[1].value}
 
-struct Motion {
+//                  _   _
+//  _ __ ___   ___ | |_(_) ___  _ __
+// | '_ ` _ \ / _ \| __| |/ _ \| '_ \
+// | | | | | | (_) | |_| | (_) | | | |
+// |_| |_| |_|\___/ \__|_|\___/|_| |_|
+
+pub struct Motion {
     a_motion: AMotion,
     source_frame_rate: f32,
     loop_duration_seconds: f32,
@@ -212,7 +235,13 @@ impl Default for AMotion {
 }
 
 impl Motion {
-    fn new(file_path: &Path) -> Self {
+
+    //  _ __   _____      __
+    // | '_ \ / _ \ \ /\ / /
+    // | | | |  __/\ V  V /
+    // |_| |_|\___| \_/\_/
+
+    pub fn new(file_path: &Path) -> Self {
         use motion_json::JsonMotion;
 
         let json = JsonMotion::new(file_path);
@@ -233,10 +262,14 @@ impl Motion {
         let mut curves:   Vec<MotionCurve>   = Vec::new();
         let mut segments: Vec<MotionSegment> = Vec::new();
         let mut points:   Vec<MotionPoint>   = Vec::new();
-        let mut events:   Vec<MotionEvent>   = Vec::new();
 
         let mut total_point_count = 0;
         let mut total_segment_count = 0;
+
+        //   ___ _   _ _ ____   _____  ___
+        //  / __| | | | '__\ \ / / _ \/ __|
+        // | (__| |_| | |   \ V /  __/\__ \
+        //  \___|\__,_|_|    \_/ \___||___/
 
         json.Curves.into_iter()
         .for_each(|curve| {
@@ -262,7 +295,6 @@ impl Motion {
                 None    => -1.,
             };
 
-            let mut segment_position = 0;
             let mut segments_iter = curve.Segments.into_iter();
             let mut segment_count = 1;
 
@@ -275,7 +307,13 @@ impl Motion {
             });
 
             total_point_count += 1;
-            segment_position += 2;
+
+            //                                      _
+            //  ___  ___  __ _ _ __ ___   ___ _ __ | |_ ___
+            // / __|/ _ \/ _` | '_ ` _ \ / _ \ '_ \| __/ __|
+            // \__ \  __/ (_| | | | | | |  __/ | | | |_\__ \
+            // |___/\___|\__, |_| |_| |_|\___|_| |_|\__|___/
+            //           |___/
 
             while let Some(segment) = segments_iter.next() {
                 type T = SegmentType;
@@ -283,7 +321,7 @@ impl Motion {
                 let base_point_index = total_point_count - 1;
 
                 match segment {
-                    0. => {
+                    s if s == 0. => {
                         let segment_type = T::Linear;
                         let time = segments_iter.next().unwrap();
                         let value = segments_iter.next().unwrap();
@@ -299,9 +337,8 @@ impl Motion {
                         });
 
                         total_point_count += 1;
-                        segment_position += 3;
                     }
-                    1. => {
+                    s if s == 1. => {
                         let segment_type = T::Bezier;
 
                         segments.push(MotionSegment {
@@ -320,9 +357,8 @@ impl Motion {
                         }
 
                         total_point_count += 3;
-                        segment_position += 7;
                     }
-                    2. => {
+                    s if s == 2. => {
                         let segment_type = T::Stepped;
 
                         let time = segments_iter.next().unwrap();
@@ -339,9 +375,8 @@ impl Motion {
                         });
 
                         total_point_count += 1;
-                        segment_position += 3;
                     }
-                    3. => {
+                    s if s == 3. => {
                         let segment_type = T::InverseStepped;
 
                         let time = segments_iter.next().unwrap();
@@ -358,7 +393,6 @@ impl Motion {
                         });
 
                         total_point_count += 1;
-                        segment_position += 3;
                     }
                     _  => unreachable!()
                 }
@@ -376,6 +410,12 @@ impl Motion {
                 segment_count,
             });
         });
+
+        //                       _
+        //   _____   _____ _ __ | |_ ___
+        //  / _ \ \ / / _ \ '_ \| __/ __|
+        // |  __/\ V /  __/ | | | |_\__ \
+        //  \___| \_/ \___|_| |_|\__|___/
 
         let events: Vec<MotionEvent> =
             json.UserData.into_iter()
@@ -402,10 +442,17 @@ impl Motion {
         let source_frame_rate = motion_data.fps;
         let loop_duration_seconds = motion_data.duration;
 
+        let a_motion = AMotion {
+            fade_in_seconds,
+            fade_out_seconds,
+            .. Default::default()
+        };
+
         Self {
             motion_data: Some(motion_data),
             source_frame_rate,
             loop_duration_seconds,
+            a_motion,
             .. Default::default()
         }
     }

@@ -1,190 +1,26 @@
-use std::{
-    io::Read,
-    path::Path,
-    fs::File,
-};
-use image;
+use std::path::Path;
 use glium::{
     glutin,
-    Display,
     Surface,
-    implement_vertex, uniform,
-    texture::SrgbTexture2d,
+    uniform,
+    texture::{SrgbTexture2d, RawImage2d},
 };
-use live2d_cubism_core_sys::core as l2d;
 
 mod framework;
 
-const INIT_WIDTH:          u16 = 640;
-const INIT_HEIGHT:         u16 = 480;
-const MODEL_NAME: &'static str = "wuerlixi_2";
-
-struct Part {
-    vertices: Vec<Vert>,
-    indices: Vec<u16>,
-    opacity: f32,
-    order: i32,
-    visibility: bool,
-    screen_color: [f32; 4],
-    multiply_color: [f32; 4],
-    texture_index: usize,
-    masks: Vec<usize>,
-    blend: glium::draw_parameters::Blend,
-}
-
-#[derive(Copy, Clone, Debug)]
-struct Vert {
-    position: [f32; 2],
-    texture_uv: [f32; 2],
-}
-
-implement_vertex!(Vert,
-                  position,
-                  texture_uv);
-
-fn create_parts(model: &l2d::Model) -> Vec<Part> {
-    use glium::draw_parameters::{
-        Blend,
-        BlendingFunction,
-        LinearBlendingFactor as Factor,
-    };
-    use l2d::ConstantDrawableFlags as Flag;
-
-    // STATIC PARTS
-    let texture_uvs_set: Vec<Vec<[f32; 2]>> =
-        model.drawables()
-        .iter()
-        .map(|drawable| drawable.vertex_uvs()
-                        .iter()
-                        .map(|uv| [uv.x, uv.y])
-                        .collect())
-        .collect();
-    let texture_indices_set: Vec<usize> =
-        model.drawables()
-        .iter()
-        .map(|drawable| drawable.texture_index())
-        .collect();
-    let masks_set: Vec<Vec<usize>> =
-        model.drawables()
-        .iter()
-        .map(|drawable| drawable.masks().to_vec())
-        .collect();
-    let triangle_indices_set: Vec<Vec<u16>> =
-        model.drawables()
-        .iter()
-        .map(|drawable| drawable.triangle_indices().to_vec())
-        .collect();
-    let constant_flags_set: Vec<_> =
-        model.drawables()
-        .iter()
-        .map(|drawable| drawable.constant_flagset())
-        .collect();
-
-    let constant_value = (0., 0., 0., 0.,);
-
-    let normal_blend = {
-        let normal_fn = BlendingFunction::Addition {
-            source: Factor::SourceAlpha,
-            destination: Factor::OneMinusSourceAlpha,
-        };
-        let normal_alpha = BlendingFunction::Addition {
-            source: Factor::One,
-            destination: Factor::One,
-        };
-        Blend {
-            color: normal_fn,
-            alpha: normal_alpha,
-            constant_value,
-        }
-    };
-
-    let add_blend = {
-        let add_fn = BlendingFunction::Addition {
-            source: Factor::One,
-            destination: Factor::One,
-        };
-        Blend {
-            color: add_fn,
-            alpha: add_fn,
-            constant_value,
-        }
-    };
-
-    let multi_blend = {
-        let multi_fn = BlendingFunction::Addition {
-            source: Factor::DestinationColor,
-            destination: Factor::OneMinusSourceAlpha,
-        };
-        let multi_alpha = BlendingFunction::Addition {
-            source: Factor::Zero,
-            destination: Factor::One,
-        };
-            Blend {
-            color: multi_fn,
-            alpha: multi_alpha,
-            constant_value,
-        }
-    };
-
-    // DYNAMIC PARTS
-    let dynamic = model.read_dynamic();
-
-    let positions_set = dynamic.drawable_vertex_position_containers();
-    let opacities_set = dynamic.drawable_opacities();
-    let orders_set = dynamic.drawable_render_orders();
-    let screen_colors_set = dynamic.drawable_screen_colors();
-    let multiply_colors_set = dynamic.drawable_multiply_colors();
-
-    let mut result: Vec<Part> =
-        (0..positions_set.len())
-        .into_iter()
-        .map(|part| {
-            let vertices =
-                (0..positions_set[part].len())
-                .into_iter()
-                .map(|vertex| {
-                    let p = positions_set[part][vertex];
-                    Vert {
-                        position: [p.x, p.y],
-                        texture_uv: texture_uvs_set[part][vertex],
-                    }
-                })
-                .collect();
-            let indices = triangle_indices_set[part].clone();
-            let texture_index = texture_indices_set[part];
-            let masks = masks_set[part].clone();
-            let sc = screen_colors_set[part];
-            let mc = multiply_colors_set[part];
-            let mut blend = normal_blend;
-
-            constant_flags_set[part]
-            .into_iter()
-            .for_each(|flag| match flag {
-                //Flag::BlendAdditive       => blend = add_blend,
-                //Flag::BlendMultiplicative => blend = multi_blend,
-                _                         => {},
-            });
-
-            Part {
-                vertices,
-                indices,
-                masks,
-                texture_index,
-                opacity: opacities_set[part],
-                order: orders_set[part],
-                visibility: true,
-                screen_color: [sc.x, sc.y, sc.z, sc.w],
-                multiply_color: [mc.x, mc.y, mc.z, mc.w],
-                blend,
-            }
-        })
-        .collect();
-
-    result.sort_by_key(|a| a.order);
-    result
-}
+const INIT_WIDTH:            u16 = 640;
+const INIT_HEIGHT:           u16 = 480;
+const WINDOW_TITLE: &'static str = "Rusty Ships";
+const MODEL_NAME:   &'static str = "wuerlixi_2";
 
 fn main() {
+
+    //   ____ _       _       _ _   
+    //  / ___| |     (_)_ __ (_) |_ 
+    // | |  _| |     | | '_ \| | __|
+    // | |_| | |___  | | | | | | |_ 
+    //  \____|_____| |_|_| |_|_|\__|
+
     let event_loop = glutin::event_loop::EventLoop::new();
     let display = {
         use glutin::{
@@ -196,7 +32,7 @@ fn main() {
         glium::Display::new(WindowBuilder::new()
                             .with_inner_size(LogicalSize::new(INIT_WIDTH,
                                                               INIT_HEIGHT))
-                            .with_title("Rusty Ships")
+                            .with_title(WINDOW_TITLE)
                             .with_decorations(false)
                             .with_transparent(true),
                             ContextBuilder::new(),
@@ -213,37 +49,32 @@ fn main() {
                              None).unwrap()
     };
 
-    let model_path = Path::new("./res/assets").join(MODEL_NAME);
-    let model = load_model(&model_path,
-                           MODEL_NAME);
+    //                      _      _ 
+    //  _ __ ___   ___   __| | ___| |
+    // | '_ ` _ \ / _ \ / _` |/ _ \ |
+    // | | | | | | (_) | (_| |  __/ |
+    // |_| |_| |_|\___/ \__,_|\___|_|
 
-    let canvas = model.canvas_info();
+    let path = Path::new("./res/assets");
+    let model = framework::Model::new(&path,
+                                      MODEL_NAME);
 
-    let textures = {
-        let mut indices: Vec<usize> =
-            model.drawables()
-            .iter()
-            .map(|drawable| drawable.texture_index())
-            .collect();
-        indices.sort();
-        indices.dedup();
+    let canvas = model.l2d.canvas_info();
 
-        load_textures(&model_path.join("textures"),
-                      indices,
-                      &display)
-    };
-
-    let mut dynamic = model.write_dynamic();
-    dynamic.reset_drawable_dynamic_flags();
-    dynamic.update();
-    drop(dynamic);
-
-    let parts = create_parts(&model);
+    let textures: Vec<SrgbTexture2d> =
+        model.textures.iter()
+        .map(|image| {
+            let image_dimensions = image.dimensions();
+            let image_raw =
+                RawImage2d::from_raw_rgba_reversed(&image.clone().into_raw(),
+                                                   image_dimensions);
+            SrgbTexture2d::new(&display, image_raw).unwrap()
+        }).collect();
 
     let vertex_buffers: Vec<_> = {
         use glium::vertex::VertexBuffer;
 
-        parts.iter()
+        model.parts.iter()
         .map(|part| VertexBuffer::new(&display,
                                       &part.vertices).unwrap())
         .collect()
@@ -251,13 +82,20 @@ fn main() {
 
     let index_buffers: Vec<_> = {
         use glium::index::{IndexBuffer, PrimitiveType};
-    
-        parts.iter()
+
+        model.parts.iter()
         .map(|part| IndexBuffer::new(&display,
                                      PrimitiveType::TrianglesList,
                                      &part.indices).unwrap())
         .collect()
     };
+
+    //                       _     _                   
+    //   _____   _____ _ __ | |_  | | ___   ___  _ __  
+    //  / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \ 
+    // |  __/\ V /  __/ | | | |_  | | (_) | (_) | |_) |
+    //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/ 
+    //                                          |_|    
 
     event_loop.run(move |event,
                          _,
@@ -270,19 +108,19 @@ fn main() {
                           0.,
                           0.);
 
-        for i in 0..parts.len() {
+        for i in 0..model.parts.len() {
             let uniforms = uniform!{
                 size: canvas.size_in_pixels,
                 origin: canvas.origin_in_pixels,
                 scale: canvas.pixels_per_unit,
-                opacity: parts[i].opacity,
-                tex: &textures[parts[i].texture_index],
+                opacity: model.parts[i].opacity,
+                tex: &textures[model.parts[i].texture_index],
             };
 
-            if !parts[i].visibility {continue}
+            if !model.parts[i].visibility {continue}
 
             let params = &glium::DrawParameters {
-                blend: parts[i].blend,
+                blend: model.parts[i].blend,
                 .. Default::default()
             };
 
@@ -303,43 +141,5 @@ fn main() {
             _ => {}
         }
     });
-}
-
-fn load_model(root: &Path,
-              name: &str) -> l2d::Model {
-    use l2d::{CubismCore, Model};
-
-    let model_name = name.to_string() + ".moc3";
-    let mut model_file = File::open(root.join(model_name)).unwrap();
-    let mut model_bytes = Vec::new();
-    model_file.read_to_end(&mut model_bytes).unwrap();
-
-    let model_moc =
-        CubismCore::default().moc_from_bytes(&model_bytes).unwrap();
-
-    Model::from_moc(&model_moc)
-}
-
-fn load_textures(root: &Path,
-                 indices: Vec<usize>,
-                 display: &Display) -> Vec<SrgbTexture2d> {
-    use std::io::BufReader;
-    use glium::texture::RawImage2d;
-
-    indices
-    .iter()
-    .map(|index| {
-        let texture_id = format!("texture_{:02}.png", index);
-        let image_file = File::open(root.join(texture_id)).unwrap();
-        let image =
-            image::load(BufReader::new(image_file),
-                        image::ImageFormat::Png).unwrap()
-            .to_rgba8();
-        let image_dimensions = image.dimensions();
-        let image_raw = RawImage2d::from_raw_rgba_reversed(&image.into_raw(),
-                                                           image_dimensions);
-        SrgbTexture2d::new(display, image_raw).unwrap()
-    })
-    .collect()
 }
 
