@@ -13,7 +13,7 @@ use glium::{
 };
 use live2d_cubism_core_sys::core as l2d;
 
-mod motion;
+mod framework;
 
 const INIT_WIDTH:          u16 = 640;
 const INIT_HEIGHT:         u16 = 480;
