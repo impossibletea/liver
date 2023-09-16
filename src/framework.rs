@@ -16,11 +16,13 @@ use l2d::{
     CubismCore,
     Model as L2DModel,
 };
+use crate::logging::*;
 
 mod motion;
 mod framework_json;
 use framework_json::JsonModel;
 
+#[derive(Debug)]
 pub struct Part {
     pub vertices: Vec<Vert>,
     pub indices: Vec<u16>,
@@ -58,7 +60,7 @@ impl Model {
     // |_| |_|\___| \_/\_/
 
     pub fn new(path: &Path,
-               name: &str) -> Self {
+               name: &str) -> Result<Self, String> {
 
         //    _                 
         //   (_)___  ___  _ __  
@@ -68,10 +70,9 @@ impl Model {
         // |__/                 
 
         let base_path = path.join(name);
-        let json_path =
-            base_path.join(name.to_string() + ".model3.json");
-        let json =
-            JsonModel::new(&json_path);
+        let json_path = base_path.join(name.to_string() + ".model3.json");
+        let json = JsonModel::new(&json_path)?;
+        info("Loaded model json");
 
         let moc_path = base_path.join(json.FileReferences.Moc);
         let texture_paths: Vec<_> =
@@ -79,10 +80,14 @@ impl Model {
             .map(|texture_path| base_path.join(texture_path)).collect();
 
         let motions_paths: Vec<_> =
-            json.FileReferences.Motions[""].as_array().unwrap().iter()
+            json.FileReferences.Motions[""]
+            .as_array()
+            .unwrap_or_else(|| unreachable!()).iter()
             .map(|motion| {
-                 let motion_path = motion["File"].as_str().unwrap();
-                 base_path.join(motion_path)
+                let motion_path =
+                    motion["File"].as_str()
+                    .unwrap_or_else(|| unreachable!());
+                base_path.join(motion_path)
             }).collect();
 
         //  _ _           ____     _
@@ -91,14 +96,21 @@ impl Model {
         // | | |\ V /  __// __/ (_| |
         // |_|_| \_/ \___|_____\__,_|
 
-        let mut model_file = File::open(moc_path).unwrap();
-        let mut model_bytes = Vec::new();
-        model_file.read_to_end(&mut model_bytes).unwrap();
-        let model_moc =
-            CubismCore::default()
-            .moc_from_bytes(&model_bytes).unwrap();
+        let l2d = {
+            use l2d::{CubismCore, Model as L2DModel};
 
-        let l2d = L2DModel::from_moc(&model_moc);
+            let mut bytes = Vec::new();
+            File::open(moc_path).map_err(|e| format!("{:?}", e))
+            .and_then(|mut file| file.read_to_end(&mut bytes)
+                             .map_err(|e| format!("{:?}", e)))
+            .and_then(|_| CubismCore::default()
+                          .moc_from_bytes(&bytes)
+                          .map_err(|e| format!("{:?}", e)))
+            .and_then(|moc| Ok(L2DModel::from_moc(&moc)))
+        }?;
+        info("Loaded l2d model");
+
+
 
         //                   _
         //  _ __   __ _ _ __| |_ ___
@@ -232,9 +244,19 @@ impl Model {
         // | | | | | | (_) | |_| | (_) | | | |
         // |_| |_| |_|\___/ \__|_|\___/|_| |_|
 
-        let motions: Vec<motion::Motion> =
-            motions_paths.iter()
-            .map(|path| motion::Motion::new(path)).collect();
+        let mut motions = Vec::<motion::Motion>::new();
+        let mut motions_iter = motions_paths.iter();
+        while let Some(path) = motions_iter.next() {
+            match motion::Motion::new(path) {
+                Ok(m) => {
+                    let message =
+                        format!("Loaded motion from {}", path.display());
+                    info(&message);
+                    motions.push(m);
+                }
+                Err(e) => warn("Unable to load motion", e)
+            }
+        }
 
         //  _            _                       
         // | |_ _____  _| |_ _   _ _ __ ___  ___ 
@@ -242,14 +264,14 @@ impl Model {
         // | ||  __/>  <| |_| |_| | | |  __/\__ \
         //  \__\___/_/\_\\__|\__,_|_|  \___||___/
 
-        let textures = {
-            texture_paths.into_iter()
-            .map(|path| {
-                let image_file = File::open(path).unwrap();
-                image::load(BufReader::new(image_file),
-                            image::ImageFormat::Png).unwrap()
-                .to_rgba8()
-            }).collect()
+        let mut textures_iter = texture_paths.into_iter();
+        let mut textures: Vec<image::RgbaImage> = Vec::new();
+        while let Some(path) = textures_iter.next() {
+                File::open(path).map_err(|e| format!("{}", e))
+                .and_then(|file| image::load(BufReader::new(file),
+                                             image::ImageFormat::Png)
+                                 .map_err(|e| format!("{}", e)))
+                .and_then(|image| Ok(textures.push(image.to_rgba8())))?;
         };
 
         let mut dynamic = l2d.write_dynamic();

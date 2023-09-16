@@ -7,6 +7,8 @@ use glium::{
 };
 
 mod framework;
+mod logging;
+use logging::*;
 
 const INIT_WIDTH:            u16 = 640;
 const INIT_HEIGHT:           u16 = 480;
@@ -29,25 +31,37 @@ fn main() {
             ContextBuilder,
         };
 
-        glium::Display::new(WindowBuilder::new()
-                            .with_inner_size(LogicalSize::new(INIT_WIDTH,
-                                                              INIT_HEIGHT))
-                            .with_title(WINDOW_TITLE)
-                            .with_decorations(false)
-                            .with_transparent(true),
-                            ContextBuilder::new(),
-                            &event_loop)
-        .unwrap()
+        let result =
+            glium::Display::new(WindowBuilder::new()
+                                .with_inner_size(LogicalSize::new(INIT_WIDTH,
+                                                                  INIT_HEIGHT))
+                                .with_title(WINDOW_TITLE)
+                                .with_decorations(false)
+                                .with_transparent(true),
+                                ContextBuilder::new(),
+                                &event_loop);
+
+        match result {
+            Ok(d)  => d,
+            Err(e) => shit_yourself_and_die("Failed to create display", e)
+        }
     };
+    info("Created a display");
 
     let program = {
         use glium::program::Program;
 
-        Program::from_source(&display,
-                             include_str!("vert.glsl"),
-                             include_str!("frag.glsl"),
-                             None).unwrap()
+        let program =
+            Program::from_source(&display,
+                                 include_str!("vert.glsl"),
+                                 include_str!("frag.glsl"),
+                                 None);
+        match program {
+            Ok(p)  => p,
+            Err(e) => shit_yourself_and_die("Failed to build shaders", e)
+        }
     };
+    info("Loaded shaders");
 
     //                      _      _ 
     //  _ __ ___   ___   __| | ___| |
@@ -56,8 +70,15 @@ fn main() {
     // |_| |_| |_|\___/ \__,_|\___|_|
 
     let path = Path::new("./res/assets");
-    let model = framework::Model::new(&path,
-                                      MODEL_NAME);
+    let mut model = {
+        let result = framework::Model::new(&path,
+                                           MODEL_NAME);
+        match result {
+            Ok(m)  => m,
+            Err(e) => shit_yourself_and_die("Failed to load model", e)
+        }
+    };
+    info("Loaded model");
 
     let canvas = model.l2d.canvas_info();
 
@@ -68,7 +89,11 @@ fn main() {
             let image_raw =
                 RawImage2d::from_raw_rgba_reversed(&image.clone().into_raw(),
                                                    image_dimensions);
-            SrgbTexture2d::new(&display, image_raw).unwrap()
+            let texture = SrgbTexture2d::new(&display, image_raw);
+            match texture {
+                Ok(t)  => t,
+                Err(e) => shit_yourself_and_die("Failed to load texture", e)
+            }
         }).collect();
 
     let vertex_buffers: Vec<_> = {
@@ -89,6 +114,7 @@ fn main() {
                                      &part.indices).unwrap())
         .collect()
     };
+    info("Loaded textures");
 
     //                       _     _                   
     //   _____   _____ _ __ | |_  | | ___   ___  _ __  
@@ -129,9 +155,12 @@ fn main() {
                        &program,
                        &uniforms,
                        &params).unwrap();
+            .unwrap_or_else(|e| shit_yourself_and_die("Failed to draw", e));
         }
 
-        frame.finish().unwrap();
+        frame
+        .finish()
+        .unwrap_or_else(|e| err("Failed to create frame", e));
 
         match event {
             Event::WindowEvent { event, .. } => match event {

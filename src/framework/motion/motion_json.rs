@@ -48,10 +48,12 @@ pub struct JsonUserData {
 }
 
 impl JsonMotion {
-    pub fn new(file_path: &Path) -> Self {
-        let file = File::open(file_path).unwrap();
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader).unwrap()
+    pub fn new(file_path: &Path) -> Result<Self, String> {
+        File::open(file_path)
+        .map_err(|e| format!("{:?}", e))
+        .and_then(|file| Ok(BufReader::new(file)))
+        .and_then(|reader| serde_json::from_reader(reader)
+                           .map_err(|e| format!("{:?}", e)))
     }
 }
 

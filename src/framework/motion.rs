@@ -1,4 +1,5 @@
 use std::path::Path;
+use crate::logging::*;
 
 mod motion_json;
 
@@ -241,10 +242,11 @@ impl Motion {
     // | | | |  __/\ V  V /
     // |_| |_|\___| \_/\_/
 
-    pub fn new(file_path: &Path) -> Self {
+    pub fn new(file_path: &Path) -> Result<Self, String> {
         use motion_json::JsonMotion;
 
-        let json = JsonMotion::new(file_path);
+        let json = JsonMotion::new(file_path)?;
+        info("Loaded motion json");
 
         let duration    = json.Meta.Duration;
         let r#loop      = json.Meta.Loop;
@@ -448,12 +450,12 @@ impl Motion {
             .. Default::default()
         };
 
-        Self {
+        Ok(Self {
             motion_data: Some(motion_data),
             source_frame_rate,
             loop_duration_seconds,
             a_motion,
             .. Default::default()
-        }
+        })
     }
 }
