@@ -1,0 +1,3 @@
+[env]
+LIVE2D_CUBISM_SDK_NATIVE_DIR = { value = "res/CubismSdkForNative-4-r.7/", relative = true }
+
