@@ -17,10 +17,10 @@ const MODEL_NAME:   &'static str = "kelaimengsuo_2";
 
 fn main() {
 
-    //   ____ _       _       _ _   
-    //  / ___| |     (_)_ __ (_) |_ 
+    //   ____ _       _       _ _
+    //  / ___| |     (_)_ __ (_) |_
     // | |  _| |     | | '_ \| | __|
-    // | |_| | |___  | | | | | | |_ 
+    // | |_| | |___  | | | | | | |_
     //  \____|_____| |_|_| |_|_|\__|
 
     let event_loop = glutin::event_loop::EventLoop::new();
@@ -43,7 +43,7 @@ fn main() {
 
         match result {
             Ok(d)  => d,
-            Err(e) => shit_yourself_and_die("Failed to create display", e)
+            Err(e) => die("Failed to create display", e)
         }
     };
     info("Created a display");
@@ -58,12 +58,12 @@ fn main() {
                                  None);
         match program {
             Ok(p)  => p,
-            Err(e) => shit_yourself_and_die("Failed to build shaders", e)
+            Err(e) => die("Failed to build shaders", e)
         }
     };
     info("Loaded shaders");
 
-    //                      _      _ 
+    //                      _      _
     //  _ __ ___   ___   __| | ___| |
     // | '_ ` _ \ / _ \ / _` |/ _ \ |
     // | | | | | | (_) | (_| |  __/ |
@@ -75,7 +75,7 @@ fn main() {
                                            MODEL_NAME);
         match result {
             Ok(m)  => m,
-            Err(e) => shit_yourself_and_die("Failed to load model", e)
+            Err(e) => die("Failed to load model", e)
         }
     };
     info("Loaded model");
@@ -92,17 +92,17 @@ fn main() {
             let texture = SrgbTexture2d::new(&display, image_raw);
             match texture {
                 Ok(t)  => t,
-                Err(e) => shit_yourself_and_die("Failed to load texture", e)
+                Err(e) => die("Failed to load texture", e)
             }
         }).collect();
     info("Loaded textures");
 
-    //                       _     _                   
-    //   _____   _____ _ __ | |_  | | ___   ___  _ __  
-    //  / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \ 
+    //                       _     _
+    //   _____   _____ _ __ | |_  | | ___   ___  _ __
+    //  / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \
     // |  __/\ V /  __/ | | | |_  | | (_) | (_) | |_) |
-    //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/ 
-    //                                          |_|    
+    //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/
+    //                                          |_|
 
     let mut time: f32 = 0.;
 
@@ -126,7 +126,7 @@ fn main() {
                                                 &part.vertices);
                 let v = match vbuffer {
                     Ok(v)  => v,
-                    Err(e) => shit_yourself_and_die("Failed to create vertex buffer", e)
+                    Err(e) => die("Failed to create vertex buffer", e)
                 };
 
                 let ibuffer = IndexBuffer::new(&display,
@@ -134,8 +134,7 @@ fn main() {
                                               &part.indices);
                 let i = match ibuffer {
                     Ok(i)  => i,
-                    Err(e) =>
-                        shit_yourself_and_die("Failed to create index buffer", e)
+                    Err(e) => die("Failed to create index buffer", e)
                 };
 
                 (v, i)
@@ -153,7 +152,7 @@ fn main() {
                 size: canvas.size_in_pixels,
                 origin: canvas.origin_in_pixels,
                 scale: canvas.pixels_per_unit,
-                opacity: parts[i].opacity,
+                opacity: model.opacity * parts[i].opacity,
                 tex: &textures[parts[i].texture_index],
             };
 
@@ -170,7 +169,7 @@ fn main() {
                   &program,
                   &uniforms,
                   &params)
-            .unwrap_or_else(|e| shit_yourself_and_die("Failed to draw", e));
+            .unwrap_or_else(|e| die("Failed to draw", e));
         }
 
         frame

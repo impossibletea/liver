@@ -7,7 +7,6 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]
-// I have no idea why fields in motion3.json are PascalCase
 pub struct JsonMotion {
     pub Version: usize,
     pub Meta: JsonMetaInfo,
