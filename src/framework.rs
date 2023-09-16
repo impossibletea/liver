@@ -1,6 +1,8 @@
 use std::{
     fs::File,
+    iter::zip,
     path::Path,
+    collections::HashMap,
     io::{Read, BufReader},
 };
 use glium::{
@@ -13,14 +15,20 @@ use glium::{
 };
 use live2d_cubism_core_sys::core as l2d;
 use l2d::{
-    CubismCore,
-    Model as L2DModel,
+    ParameterType,
+    ConstantDrawableFlags as Flag,
 };
 use crate::logging::*;
 
 mod motion;
 mod framework_json;
 use framework_json::JsonModel;
+
+//  ____            _   
+// |  _ \ __ _ _ __| |_ 
+// | |_) / _` | '__| __|
+// |  __/ (_| | |  | |_ 
+// |_|   \__,_|_|   \__|
 
 #[derive(Debug)]
 pub struct Part {
@@ -46,11 +54,35 @@ implement_vertex!(Vert,
                   position,
                   texture_uv);
 
+//  __  __           _      _ 
+// |  \/  | ___   __| | ___| |
+// | |\/| |/ _ \ / _` |/ _ \ |
+// | |  | | (_) | (_| |  __/ |
+// |_|  |_|\___/ \__,_|\___|_|
+
 pub struct Model {
-    pub l2d: L2DModel,
+    pub l2d: l2d::Model,
     pub parts: Vec<Part>,
     pub textures: Vec<image::RgbaImage>,
     pub motions: Vec<motion::Motion>,
+    current_motion: usize,
+    last_time: f32,
+    opacity: f32,
+    parameters: HashMap<String, ModelParameter>,
+}
+
+struct ModelParameter {
+    value: f32,
+    max: f32,
+    min: f32,
+    r#type: ModelParameterType,
+    keys: Vec<f32>,
+    index: usize,
+}
+
+enum ModelParameterType {
+    Normal,
+    BlendShape,
 }
 
 impl Model {
@@ -110,7 +142,41 @@ impl Model {
         }?;
         info("Loaded l2d model");
 
+        //                                       _                
+        //  _ __   __ _ _ __ __ _ _ __ ___   ___| |_ ___ _ __ ___ 
+        // | '_ \ / _` | '__/ _` | '_ ` _ \ / _ \ __/ _ \ '__/ __|
+        // | |_) | (_| | | | (_| | | | | | |  __/ ||  __/ |  \__ \
+        // | .__/ \__,_|_|  \__,_|_| |_| |_|\___|\__\___|_|  |___/
+        // |_|                                                    
 
+        let mut parameters = HashMap::<String, ModelParameter>::new();
+        let mut index = 0;
+
+        l2d.parameters().iter()
+        .for_each(|parameter| {
+            let id = parameter.id().to_string();
+            let value = parameter.default_value();
+            let (max, min) = parameter.value_range();
+            let r#type = match parameter.ty() {
+                ParameterType::Normal =>
+                    ModelParameterType::Normal,
+                ParameterType::BlendShape =>
+                    ModelParameterType::BlendShape
+            };
+            let keys: Vec<f32> = parameter.keys().to_owned();
+
+            let p = ModelParameter {
+                value,
+                max,
+                min,
+                r#type,
+                keys,
+                index,
+            };
+
+            parameters.insert(id, p);
+            index += 1;
+        });
 
         //                   _
         //  _ __   __ _ _ __| |_ ___
@@ -214,12 +280,12 @@ impl Model {
                 // Temporarily disabled, warning on unnecessary mutability will
                 // remind me of that
                 //
-                // constant_flags_set[part].into_iter()
-                // .for_each(|flag| match flag {
-                //     Flag::BlendAdditive       => blend = add_blend,
-                //     Flag::BlendMultiplicative => blend = multi_blend,
-                //     _                         => {},
-                // });
+                //constant_flags_set[part].into_iter()
+                //.for_each(|flag| match flag {
+                //    Flag::BlendAdditive       => blend = add_blend,
+                //    Flag::BlendMultiplicative => blend = multi_blend,
+                //    _                         => {},
+                //});
 
                 Part {
                     vertices,
@@ -235,7 +301,6 @@ impl Model {
                 }
             }).collect();
 
-        parts.sort_by_key(|part| part.order);
         drop(dynamic);
 
         //                  _   _
@@ -279,11 +344,154 @@ impl Model {
         dynamic.update();
         drop(dynamic);
 
-        Self {
+        let current_motion = 8;
+        let last_time = 0.;
+        let opacity = 0.;
+
+        Ok(Self {
             l2d,
             parts,
             textures,
             motions,
+            last_time,
+            parameters,
+            opacity,
+            current_motion,
+        })
+    }
+
+    //                  _       _       
+    //  _   _ _ __   __| | __ _| |_ ___ 
+    // | | | | '_ \ / _` |/ _` | __/ _ \
+    // | |_| | |_) | (_| | (_| | ||  __/
+    //  \__,_| .__/ \__,_|\__,_|\__\___|
+    //       |_|                        
+
+    pub fn update(&mut self, time: f32) {
+        use motion::MotionCurveTarget as T;
+
+        let motion = &self.motions[self.current_motion];
+
+        let time_offset_seconds = {
+            let mut offset = time - self.last_time;
+            let duration = motion.loop_duration_seconds;
+            if motion.is_loop {
+                while offset > duration {
+                    offset -= duration;
+                }
+            }
+            if offset < 0. {0.} else {offset}
+        };
+
+        //   __           _      
+        //  / _| __ _  __| | ___ 
+        // | |_ / _` |/ _` |/ _ \
+        // |  _| (_| | (_| |  __/
+        // |_|  \__,_|\__,_|\___|
+
+        // todo
+
+        //   ___ _   _ _ ____   _____  ___ 
+        //  / __| | | | '__\ \ / / _ \/ __|
+        // | (__| |_| | |   \ V /  __/\__ \
+        //  \___|\__,_|_|    \_/ \___||___/
+
+        let curves = match &motion.motion_data {
+            Some(d) => &d.curves,
+            None    => todo!(),
+        };
+
+        let mut curves_iter = curves.iter();
+        while let Some(curve) = curves_iter.next() {
+            let value =
+                motion.motion_data.as_ref().unwrap()
+                .evaluate_curve(curve,
+                                time_offset_seconds);
+
+            match curve.r#type {
+                T::Model => {
+                    // this should work with blinking, lipsync and opacity,
+                    // but I am yet to figure out how
+                }
+                T::Parameter => {
+                    let id = &curve.id;
+                    let mut parameter = match self.parameters.get_mut(id) {
+                        Some(p) => p,
+                        None    => continue
+                    };
+                    parameter.value = value;
+                }
+                T::PartOpacity => {
+                    let id = &curve.id;
+                    let mut parameter = match self.parameters.get_mut(id) {
+                        Some(p) => p,
+                        None    => continue
+                    };
+                    parameter.value = value;
+                }
+            }
         }
+
+        let pars: Vec<(usize, f32)> =
+            self.parameters.iter()
+            .map(|parameter| {
+                let index = parameter.1.index;
+                let value = parameter.1.value;
+                (index, value)
+            }).collect();
+
+        let mut dynamic = self.l2d.write_dynamic();
+        let mut l2d_parameters = dynamic.parameter_values_mut();
+
+        pars.iter()
+        .for_each(|(i, v)| {
+            l2d_parameters[*i] = *v;
+        });
+        dynamic.update();
+
+        let positions_set = dynamic.drawable_vertex_position_containers();
+        let opacities_set = dynamic.drawable_opacities();
+        let orders_set = dynamic.drawable_render_orders();
+        let screen_colors_set = dynamic.drawable_screen_colors();
+        let multiply_colors_set = dynamic.drawable_multiply_colors();
+
+        let new_values = (0..positions_set.len()).into_iter();
+        let mut parts = &mut self.parts;
+
+        let mut updates = zip(parts, new_values);
+
+        for (part, update) in updates {
+            let mut vertex_updates =
+                (0..positions_set[update].len()).into_iter();
+            let mut vertices = &mut part.vertices;
+            let mut updates2 = zip(vertices, vertex_updates);
+
+            for (vertex, update2) in updates2 {
+                let p = positions_set[update][update2];
+                vertex.position = [p.x, p.y];
+            }
+
+            let sc = screen_colors_set[update];
+            let mc = multiply_colors_set[update];
+
+            // Temporarily disabled, warning on unnecessary mutability will
+            // remind me of that
+            //
+            // constant_flags_set[part].into_iter()
+            // .for_each(|flag| match flag {
+            //     Flag::BlendAdditive       => blend = add_blend,
+            //     Flag::BlendMultiplicative => blend = multi_blend,
+            //     _                         => {},
+            // });
+
+            part.opacity = opacities_set[update];
+            part.order = orders_set[update];
+        }
+
+    }
+    pub fn parts_sorted(&self) -> Vec<&Part> {
+        let mut result: Vec<&Part> = self.parts.iter().collect();
+        result.sort_by_key(|part| part.order);
+        result
     }
 }

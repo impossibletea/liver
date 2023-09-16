@@ -3,54 +3,62 @@ use crate::logging::*;
 
 mod motion_json;
 
-struct MotionData {
-    duration: f32,
-    r#loop: bool,
-    fps: f32,
-    curves: Vec<MotionCurve>,
-    segments: Vec<MotionSegment>,
-    points: Vec<MotionPoint>,
-    events: Vec<MotionEvent>,
+//  __  __       _   _             ____        _        
+// |  \/  | ___ | |_(_) ___  _ __ |  _ \  __ _| |_ __ _ 
+// | |\/| |/ _ \| __| |/ _ \| '_ \| | | |/ _` | __/ _` |
+// | |  | | (_) | |_| | (_) | | | | |_| | (_| | || (_| |
+// |_|  |_|\___/ \__|_|\___/|_| |_|____/ \__,_|\__\__,_|
+
+#[derive(Debug)]
+pub struct MotionData {
+    pub duration: f32,
+    pub r#loop: bool,
+    pub fps: f32,
+    pub curves: Vec<MotionCurve>,
+    pub segments: Vec<MotionSegment>,
+    pub points: Vec<MotionPoint>,
+    pub events: Vec<MotionEvent>,
 }
 
-#[derive(Clone)]
-struct MotionCurve {
-    r#type: MotionCurveTarget,
-    id: String,
-    base_segment_index: usize,
-    segment_count: usize,
-    fade_in_time: f32,
-    fade_out_time: f32,
+#[derive(Debug, Clone)]
+pub struct MotionCurve {
+    pub r#type: MotionCurveTarget,
+    pub id: String,
+    pub base_segment_index: usize,
+    pub segment_count: usize,
+    pub fade_in_time: f32,
+    pub fade_out_time: f32,
 }
 
-#[derive(Copy, Clone)]
-enum MotionCurveTarget {
+#[derive(Debug, Copy, Clone)]
+pub enum MotionCurveTarget {
     Model,
     Parameter,
     PartOpacity,
 }
 
-#[derive(Copy, Clone)]
-struct MotionSegment {
+#[derive(Debug, Copy, Clone)]
+pub struct MotionSegment {
     base_point_index: usize,
     segment_type: SegmentType,
 }
 
-#[derive(Copy, Clone)]
-enum SegmentType {
+#[derive(Debug, Copy, Clone)]
+pub enum SegmentType {
     Linear,
     Bezier,
     Stepped,
     InverseStepped,
 }
 
-#[derive(Copy, Clone)]
-struct MotionPoint {
+#[derive(Debug, Copy, Clone)]
+pub struct MotionPoint {
     time: f32,
     value: f32,
 }
 
-struct MotionEvent {
+#[derive(Debug, Clone)]
+pub struct MotionEvent {
     fire_time: f32,
     value: String,
 }
@@ -63,17 +71,15 @@ impl MotionData {
     // |  __/\ V / (_| | | |_| | (_| | ||  __/
     //  \___| \_/ \__,_|_|\__,_|\__,_|\__\___|
 
-    fn evaluate_curve(&self,
-                      index: usize,
-                      time: f32) -> f32 {
-        let curve = &self.curves[index];
-
+    pub fn evaluate_curve(&self,
+                          curve: &MotionCurve,
+                          time: f32) -> f32 {
         let mut target: Option<usize> = None;
         let total_segment_count =
             curve.base_segment_index + curve.segment_count;
         let mut point_position = 0;
 
-        for i in curve.base_segment_index..total_segment_count {
+        for i in curve.base_segment_index..total_segment_count-1 {
             point_position = {
                 let segment = self.segments[i];
                 let a = segment.base_point_index;
@@ -173,29 +179,31 @@ fn stepped(points: &[MotionPoint; 2]) -> f32 {points[0].value}
 
 fn inverse_stepped(points: &[MotionPoint; 2]) -> f32 {points[1].value}
 
-//                  _   _
-//  _ __ ___   ___ | |_(_) ___  _ __
-// | '_ ` _ \ / _ \| __| |/ _ \| '_ \
-// | | | | | | (_) | |_| | (_) | | | |
-// |_| |_| |_|\___/ \__|_|\___/|_| |_|
-
+//  __  __       _   _             
+// |  \/  | ___ | |_(_) ___  _ __  
+// | |\/| |/ _ \| __| |/ _ \| '_ \ 
+// | |  | | (_) | |_| | (_) | | | |
+// |_|  |_|\___/ \__|_|\___/|_| |_|
+                                
+#[derive(Debug)]
 pub struct Motion {
-    a_motion: AMotion,
-    source_frame_rate: f32,
-    loop_duration_seconds: f32,
-    is_loop: bool,
-    is_loop_fade_in: bool,
-    last_weight: f32,
-    motion_data: Option<MotionData>,
-    eye_blink_parameter_ids: Option<Vec<usize>>,
-    lip_sync_parameter_ids: Option<Vec<usize>>,
-    model_curve_id_eye_blink: Option<usize>,
-    model_curve_id_lip_sync: Option<usize>,
-    model_curve_id_opacity: Option<usize>,
-    model_opacity: f32,
+    pub a_motion: AMotion,
+    pub source_frame_rate: f32,
+    pub loop_duration_seconds: f32,
+    pub is_loop: bool,
+    pub is_loop_fade_in: bool,
+    pub last_weight: f32,
+    pub motion_data: Option<MotionData>,
+    pub eye_blink_parameter_ids: Option<Vec<usize>>,
+    pub lip_sync_parameter_ids: Option<Vec<usize>>,
+    pub model_curve_id_eye_blink: Option<usize>,
+    pub model_curve_id_lip_sync: Option<usize>,
+    pub model_curve_id_opacity: Option<usize>,
+    pub model_opacity: f32,
 }
 
-struct AMotion {
+#[derive(Debug)]
+pub struct AMotion {
     fade_in_seconds: f32,
     fade_out_seconds: f32,
     weight: f32,
@@ -281,9 +289,6 @@ impl Motion {
                 "Model"       => T::Model,
                 "Parameter"   => T::Parameter,
                 "PartOpacity" => T::PartOpacity,
-                // In the C++ Framework enum is used, and value is
-                // 0-initialized, so what is technically unreachable
-                // becomes Model
                 _             => T::Model,
             };
             let id = curve.Id;

@@ -10,10 +10,10 @@ mod framework;
 mod logging;
 use logging::*;
 
-const INIT_WIDTH:            u16 = 640;
-const INIT_HEIGHT:           u16 = 480;
+const INIT_WIDTH:            u16 = 1000;
+const INIT_HEIGHT:           u16 = 1000;
 const WINDOW_TITLE: &'static str = "Rusty Ships";
-const MODEL_NAME:   &'static str = "wuerlixi_2";
+const MODEL_NAME:   &'static str = "kelaimengsuo_2";
 
 fn main() {
 
@@ -95,25 +95,6 @@ fn main() {
                 Err(e) => shit_yourself_and_die("Failed to load texture", e)
             }
         }).collect();
-
-    let vertex_buffers: Vec<_> = {
-        use glium::vertex::VertexBuffer;
-
-        model.parts.iter()
-        .map(|part| VertexBuffer::new(&display,
-                                      &part.vertices).unwrap())
-        .collect()
-    };
-
-    let index_buffers: Vec<_> = {
-        use glium::index::{IndexBuffer, PrimitiveType};
-
-        model.parts.iter()
-        .map(|part| IndexBuffer::new(&display,
-                                     PrimitiveType::TrianglesList,
-                                     &part.indices).unwrap())
-        .collect()
-    };
     info("Loaded textures");
 
     //                       _     _                   
@@ -123,10 +104,43 @@ fn main() {
     //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/ 
     //                                          |_|    
 
+    let mut time: f32 = 0.;
+
     event_loop.run(move |event,
                          _,
                          control_flow| {
         use glutin::event::{Event, WindowEvent};
+
+        model.update(time);
+        let parts = model.parts_sorted();
+
+        let buffers: Vec<_> = {
+            use glium::{
+                vertex::VertexBuffer,
+                index::{IndexBuffer, PrimitiveType},
+            };
+
+            parts.iter()
+            .map(|part| {
+                let vbuffer = VertexBuffer::new(&display,
+                                                &part.vertices);
+                let v = match vbuffer {
+                    Ok(v)  => v,
+                    Err(e) => shit_yourself_and_die("Failed to create vertex buffer", e)
+                };
+
+                let ibuffer = IndexBuffer::new(&display,
+                                              PrimitiveType::TrianglesList,
+                                              &part.indices);
+                let i = match ibuffer {
+                    Ok(i)  => i,
+                    Err(e) =>
+                        shit_yourself_and_die("Failed to create index buffer", e)
+                };
+
+                (v, i)
+            }).collect()
+        };
 
         let mut frame = display.draw();
         frame.clear_color(0.,
@@ -134,33 +148,36 @@ fn main() {
                           0.,
                           0.);
 
-        for i in 0..model.parts.len() {
+        for i in 0..parts.len() {
             let uniforms = uniform!{
                 size: canvas.size_in_pixels,
                 origin: canvas.origin_in_pixels,
                 scale: canvas.pixels_per_unit,
-                opacity: model.parts[i].opacity,
-                tex: &textures[model.parts[i].texture_index],
+                opacity: parts[i].opacity,
+                tex: &textures[parts[i].texture_index],
             };
 
-            if !model.parts[i].visibility {continue}
+            if !parts[i].visibility {continue}
 
             let params = &glium::DrawParameters {
-                blend: model.parts[i].blend,
+                blend: parts[i].blend,
                 .. Default::default()
             };
 
-            frame.draw(&vertex_buffers[i],
-                       &index_buffers[i],
-                       &program,
-                       &uniforms,
-                       &params).unwrap();
+            frame
+            .draw(&buffers[i].0,
+                  &buffers[i].1,
+                  &program,
+                  &uniforms,
+                  &params)
             .unwrap_or_else(|e| shit_yourself_and_die("Failed to draw", e));
         }
 
         frame
         .finish()
         .unwrap_or_else(|e| err("Failed to create frame", e));
+
+        time += 0.005;
 
         match event {
             Event::WindowEvent { event, .. } => match event {
