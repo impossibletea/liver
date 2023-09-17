@@ -83,6 +83,16 @@ enum ModelParameterType {
     BlendShape,
 }
 
+impl ModelParameter {
+    pub fn update(&mut self, new: f32) {
+        self.value = match new {
+            s if s < self.min => self.min,
+            s if s > self.max => self.max,
+            _                 => new,
+        };
+    }
+}
+
 impl Model {
     //  _ __   _____      __
     // | '_ \ / _ \ \ /\ / /
@@ -154,7 +164,7 @@ impl Model {
         .for_each(|parameter| {
             let id = parameter.id().to_string();
             let value = parameter.default_value();
-            let (max, min) = parameter.value_range();
+            let (min, max) = parameter.value_range();
             let r#type = match parameter.ty() {
                 ParameterType::Normal =>
                     ModelParameterType::Normal,
@@ -368,15 +378,25 @@ impl Model {
     pub fn update(&mut self) {
         use motion::MotionCurveTarget as T;
 
-        let motion = &self.motions[self.current_motion];
+        let mut dynamic = self.l2d.write_dynamic();
+        let l2d_parameters = dynamic.parameter_values_mut();
 
-        let time_offset_seconds = {
+        let motion = &self.motions[self.current_motion];
+        let duration = match &motion.motion_data {
+            Some(md) => md.duration,
+            None     => return
+        };
+
+        //  _   _                
+        // | |_(_)_ __ ___   ___ 
+        // | __| | '_ ` _ \ / _ \
+        // | |_| | | | | | |  __/
+        //  \__|_|_| |_| |_|\___|
+
+        let time = {
             let mut offset = self.last_time.elapsed().as_secs_f32();
-            let duration = motion.loop_duration_seconds;
             if motion.is_loop {
-                while offset > duration {
-                    offset -= duration;
-                }
+                while offset > duration {offset -= duration;}
             }
             if offset < 0. {0.} else {offset}
         };
@@ -387,7 +407,18 @@ impl Model {
         // |  _| (_| | (_| |  __/
         // |_|  \__,_|\__,_|\___|
 
-        // todo
+        let tmp_fade_in = {
+            let fis = motion.a_motion.fade_in_seconds;
+            if fis < 0. {1.} else {easin(time / fis)}
+        };
+        let tmp_fade_out = {
+            let fos = motion.a_motion.fade_out_seconds;
+            if fos < 0. {1.} else {easin((duration - time) / fos)}
+        };
+        let fade_weight = {
+            let weight = motion.a_motion.weight;
+            weight * tmp_fade_in * tmp_fade_out
+        };
 
         //   ___ _   _ _ ____   _____  ___
         //  / __| | | | '__\ \ / / _ \/ __|
@@ -404,8 +435,7 @@ impl Model {
             let value =
                 motion.motion_data.as_ref().unwrap()
                 .evaluate_curve(curve,
-                                time_offset_seconds);
-
+                                time);
             match curve.r#type {
                 T::Model => {
                     // this should work with blinking, lipsync and opacity,
@@ -417,7 +447,28 @@ impl Model {
                         Some(p) => p,
                         None    => continue
                     };
-                    parameter.value = value;
+                    let source = parameter.value;
+
+                    let fin = curve.fade_in_time;
+                    let fout = curve.fade_out_time;
+                    let weight = if fin < 0. && fout < 0. {
+                        fade_weight
+                    } else {
+                        let win = match fin {
+                            s if s < 0.  => tmp_fade_in,
+                            s if s == 0. => 1.,
+                            _            => easin(time / fin)
+                        };
+                        let wout = match fout {
+                            s if s < 0.  => tmp_fade_out,
+                            s if s == 0. => 1.,
+                            _            => easin((duration - time) / fout)
+                        };
+                        let wm = motion.a_motion.weight;
+                        wm * win * wout
+                    };
+
+                    parameter.update(source + (value - source) * weight);
                 }
                 T::PartOpacity => {
                     let id = &curve.id;
@@ -425,17 +476,15 @@ impl Model {
                         Some(p) => p,
                         None    => continue
                     };
-                    parameter.value = value;
+
+                    parameter.update(value);
                 }
             }
         }
 
-        //                                       _
-        //  _ __   __ _ _ __ __ _ _ __ ___   ___| |_ ___ _ __ ___
-        // | '_ \ / _` | '__/ _` | '_ ` _ \ / _ \ __/ _ \ '__/ __|
-        // | |_) | (_| | | | (_| | | | | | |  __/ ||  __/ |  \__ \
-        // | .__/ \__,_|_|  \__,_|_| |_| |_|\___|\__\___|_|  |___/
-        // _|
+        if time >= duration {
+            self.last_time = Instant::now();
+        }
 
         let pars: Vec<(usize, f32)> =
             self.parameters.iter()
@@ -445,6 +494,11 @@ impl Model {
                 (index, value)
             }).collect();
 
+        pars.iter()
+        .for_each(|(i, v)| {
+            l2d_parameters[*i] = *v;
+        });
+
         //                   _
         //  _ __   __ _ _ __| |_ ___
         // | '_ \ / _` | '__| __/ __|
@@ -452,14 +506,8 @@ impl Model {
         // | .__/ \__,_|_|   \__|___/
         // |_|
 
-        let mut dynamic = self.l2d.write_dynamic();
-        let l2d_parameters = dynamic.parameter_values_mut();
-
-        pars.iter()
-        .for_each(|(i, v)| {
-            l2d_parameters[*i] = *v;
-        });
         dynamic.update();
+        dynamic.reset_drawable_dynamic_flags();
 
         let positions_set = dynamic.drawable_vertex_position_containers();
         let opacities_set = dynamic.drawable_opacities();
@@ -501,7 +549,6 @@ impl Model {
             part.opacity = opacities_set[update];
             part.order = orders_set[update];
         }
-
     }
 
     //                 _
@@ -525,5 +572,15 @@ impl Model {
         self.last_time = Instant::now();
         self.current_motion = i;
         i
+    }
+}
+
+fn easin(v: f32) -> f32 {
+    use std::f32::consts::PI;
+
+    match v {
+        s if s < 0. => 0.,
+        s if s > 1. => 1.,
+        _           => 0.5 - 0.5 * (v * PI).cos()
     }
 }

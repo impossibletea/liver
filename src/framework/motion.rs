@@ -203,11 +203,11 @@ pub struct Motion {
 
 #[derive(Debug)]
 pub struct AMotion {
-    fade_in_seconds: f32,
-    fade_out_seconds: f32,
-    weight: f32,
-    offset_seconds: f32,
-    fired_event_values: Option<Vec<String>>,
+    pub fade_in_seconds: f32,
+    pub fade_out_seconds: f32,
+    pub weight: f32,
+    pub offset_seconds: f32,
+    pub fired_event_values: Option<Vec<String>>,
 }
 
 impl Default for Motion {
