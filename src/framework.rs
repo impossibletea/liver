@@ -94,6 +94,7 @@ impl Model {
 
     pub fn new(path: &Path,
                name: &str) -> Result<Self, String> {
+        use l2d::ConstantDrawableFlags as Flag;
 
         //    _
         //   (_)___  ___  _ __
@@ -206,7 +207,7 @@ impl Model {
             };
             let normal_alpha = BlendingFunction::Addition {
                 source: Factor::One,
-                destination: Factor::One,
+                destination: Factor::OneMinusSourceAlpha,
             };
             Blend {
                 color: normal_fn,
@@ -218,33 +219,37 @@ impl Model {
         // Temporarily disabled, warning on unnecessary mutability will
         // remind me of that
 
-        //let add_blend = {
-        //    let add_fn = BlendingFunction::Addition {
-        //        source: Factor::One,
-        //        destination: Factor::One,
-        //    };
-        //    Blend {
-        //        color: add_fn,
-        //        alpha: add_fn,
-        //        constant_value,
-        //    }
-        //};
+        let add_blend = {
+            let add_fn = BlendingFunction::Addition {
+                source: Factor::One,
+                destination: Factor::One,
+            };
+            let add_alpha = BlendingFunction::Addition {
+                source: Factor::Zero,
+                destination: Factor::One,
+            };
+            Blend {
+                color: add_fn,
+                alpha: add_alpha,
+                constant_value,
+            }
+        };
 
-        //let multi_blend = {
-        //    let multi_fn = BlendingFunction::Addition {
-        //        source: Factor::DestinationColor,
-        //        destination: Factor::OneMinusSourceAlpha,
-        //    };
-        //    let multi_alpha = BlendingFunction::Addition {
-        //        source: Factor::Zero,
-        //        destination: Factor::One,
-        //    };
-        //        Blend {
-        //        color: multi_fn,
-        //        alpha: multi_alpha,
-        //        constant_value,
-        //    }
-        //};
+        let multi_blend = {
+            let multi_fn = BlendingFunction::Addition {
+                source: Factor::DestinationColor,
+                destination: Factor::OneMinusSourceAlpha,
+            };
+            let multi_alpha = BlendingFunction::Addition {
+                source: Factor::Zero,
+                destination: Factor::One,
+            };
+                Blend {
+                color: multi_fn,
+                alpha: multi_alpha,
+                constant_value,
+            }
+        };
 
         // DYNAMIC PARTS
         let dynamic = l2d.read_dynamic();
@@ -272,14 +277,14 @@ impl Model {
                 let masks = masks_set[part].clone();
                 let sc = screen_colors_set[part];
                 let mc = multiply_colors_set[part];
-                let blend = normal_blend;
+                let mut blend = normal_blend;
 
-                //constant_flags_set[part].into_iter()
-                //.for_each(|flag| match flag {
-                //    Flag::BlendAdditive       => blend = add_blend,
-                //    Flag::BlendMultiplicative => blend = multi_blend,
-                //    _                         => {},
-                //});
+                constant_flags_set[part].into_iter()
+                .for_each(|flag| match flag {
+                    //Flag::BlendAdditive       => blend = add_blend,
+                    //Flag::BlendMultiplicative => blend = multi_blend,
+                    _                         => {},
+                });
 
                 Part {
                     vertices,
@@ -519,16 +524,6 @@ impl Model {
 
             let sc = screen_colors_set[update];
             let mc = multiply_colors_set[update];
-
-            // Temporarily disabled, warning on unnecessary mutability will
-            // remind me of that
-            //
-            // constant_flags_set[part].into_iter()
-            // .for_each(|flag| match flag {
-            //     Flag::BlendAdditive       => blend = add_blend,
-            //     Flag::BlendMultiplicative => blend = multi_blend,
-            //     _                         => {},
-            // });
 
             part.screen_color = [sc.x, sc.y, sc.z, sc.w];
             part.multiply_color = [mc.x, mc.y, mc.z, mc.w];

@@ -211,7 +211,7 @@ fn main() {
                                         _                        => None};
                     if let Some(id2) = id {
                         let result = model.set_motion(id2);
-                        info(&format!("Set motion to{}", result));
+                        info(&format!("Set motion to {}", result));
                     }
                 }
                 _ => {}
