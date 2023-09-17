@@ -15,7 +15,6 @@ use glium::{
     },
 };
 use live2d_cubism_core_sys::core as l2d;
-use l2d::ParameterType;
 use crate::logging::*;
 
 mod motion;
@@ -73,14 +72,8 @@ pub struct ModelParameter {
     value: f32,
     max: f32,
     min: f32,
-    r#type: ModelParameterType,
     keys: Vec<f32>,
     index: usize,
-}
-
-enum ModelParameterType {
-    Normal,
-    BlendShape,
 }
 
 impl ModelParameter {
@@ -165,19 +158,12 @@ impl Model {
             let id = parameter.id().to_string();
             let value = parameter.default_value();
             let (min, max) = parameter.value_range();
-            let r#type = match parameter.ty() {
-                ParameterType::Normal =>
-                    ModelParameterType::Normal,
-                ParameterType::BlendShape =>
-                    ModelParameterType::BlendShape
-            };
             let keys: Vec<f32> = parameter.keys().to_owned();
 
             let p = ModelParameter {
                 value,
                 max,
                 min,
-                r#type,
                 keys,
                 index,
             };
