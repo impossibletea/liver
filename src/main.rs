@@ -104,14 +104,19 @@ fn main() {
     //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/
     //                                          |_|
 
-    let mut time: f32 = 0.;
-
     event_loop.run(move |event,
                          _,
                          control_flow| {
-        use glutin::event::{Event, WindowEvent};
+        use glutin::event::{
+            Event,
+            WindowEvent,
+            DeviceEvent,
+            KeyboardInput,
+            ElementState,
+            VirtualKeyCode as VKC,
+        };
 
-        model.update(time);
+        model.update();
         let parts = model.parts_sorted();
 
         let buffers: Vec<_> = {
@@ -176,13 +181,41 @@ fn main() {
         .finish()
         .unwrap_or_else(|e| err("Failed to create frame", e));
 
-        time += 0.005;
-
         match event {
-            Event::WindowEvent { event, .. } => match event {
+            Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
-                _ => {},
-            },
+                _ => {}
+            }
+            Event::DeviceEvent {event, ..} => match event {
+                DeviceEvent::Key(KeyboardInput {
+                    virtual_keycode: Some(vkc),
+                    state: ElementState::Pressed,
+                    ..
+                }) => {
+                    let id = match vkc {VKC::Key0 | VKC::Numpad0 => Some(0),
+                                        VKC::Key1 | VKC::Numpad1 => Some(1),
+                                        VKC::Key2 | VKC::Numpad2 => Some(2),
+                                        VKC::Key3 | VKC::Numpad3 => Some(3),
+                                        VKC::Key4 | VKC::Numpad4 => Some(4),
+                                        VKC::Key5 | VKC::Numpad5 => Some(5),
+                                        VKC::Key6 | VKC::Numpad6 => Some(6),
+                                        VKC::Key7 | VKC::Numpad7 => Some(7),
+                                        VKC::Key8 | VKC::Numpad8 => Some(8),
+                                        VKC::Key9 | VKC::Numpad9 => Some(9),
+                                        VKC::A                   => Some(10),
+                                        VKC::B                   => Some(11),
+                                        VKC::C                   => Some(12),
+                                        VKC::D                   => Some(13),
+                                        VKC::E                   => Some(14),
+                                        VKC::F                   => Some(15),
+                                        _                        => None};
+                    if let Some(id2) = id {
+                        let result = model.set_motion(id2);
+                        info(&format!("Set motion to{}", result));
+                    }
+                }
+                _ => {}
+            }
             _ => {}
         }
     });

@@ -2,6 +2,7 @@ use std::{
     fs::File,
     iter::zip,
     path::Path,
+    time::Instant,
     collections::HashMap,
     io::{Read, BufReader},
 };
@@ -63,7 +64,7 @@ pub struct Model {
     pub textures: Vec<image::RgbaImage>,
     pub motions: Vec<motion::Motion>,
     pub current_motion: usize,
-    pub last_time: f32,
+    pub last_time: Instant,
     pub opacity: f32,
     pub parameters: HashMap<String, ModelParameter>,
 }
@@ -341,8 +342,8 @@ impl Model {
         dynamic.update();
         drop(dynamic);
 
-        let current_motion = 8;
-        let last_time = 0.;
+        let current_motion = 5;
+        let last_time = Instant::now();
         let opacity = 1.;
 
         Ok(Self {
@@ -364,13 +365,13 @@ impl Model {
     //  \__,_| .__/ \__,_|\__,_|\__\___|
     //       |_|
 
-    pub fn update(&mut self, time: f32) {
+    pub fn update(&mut self) {
         use motion::MotionCurveTarget as T;
 
         let motion = &self.motions[self.current_motion];
 
         let time_offset_seconds = {
-            let mut offset = time - self.last_time;
+            let mut offset = self.last_time.elapsed().as_secs_f32();
             let duration = motion.loop_duration_seconds;
             if motion.is_loop {
                 while offset > duration {
@@ -513,5 +514,16 @@ impl Model {
         let mut result: Vec<&Part> = self.parts.iter().collect();
         result.sort_by_key(|part| part.order);
         result
+    }
+
+    pub fn set_motion(&mut self, id: usize) -> usize {
+        let max = self.motions.len();
+        let i = match id {
+            s if s >= max => max,
+            _             => id
+        };
+        self.last_time = Instant::now();
+        self.current_motion = i;
+        i
     }
 }

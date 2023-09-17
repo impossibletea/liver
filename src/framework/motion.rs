@@ -1,5 +1,4 @@
 use std::path::Path;
-use crate::logging::*;
 
 mod motion_json;
 
@@ -254,7 +253,6 @@ impl Motion {
         use motion_json::JsonMotion;
 
         let json = JsonMotion::new(file_path)?;
-        info("Loaded motion json");
 
         let duration    = json.Meta.Duration;
         let r#loop      = json.Meta.Loop;
