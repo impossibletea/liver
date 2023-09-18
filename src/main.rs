@@ -1,21 +1,62 @@
-use std::path::Path;
 use glium::{
     glutin,
     Surface,
     uniform,
     texture::{SrgbTexture2d, RawImage2d},
 };
+use serde::{Serialize, Deserialize};
 
 mod framework;
 mod logging;
 use logging::*;
 
-const INIT_WIDTH:            u16 = 1000;
-const INIT_HEIGHT:           u16 = 1000;
-const WINDOW_TITLE: &'static str = "Rusty Ships";
-const MODEL_NAME:   &'static str = "kelaimengsuo_2";
+const APP_NAME: &'static str = "rusty-ships";
+
+#[derive(Serialize, Deserialize)]
+struct Config {
+    window: WindowConfig,
+    model: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct WindowConfig {
+    size: [u16; 2],
+    title: String,
+}
+
+impl std::default::Default for Config {
+    fn default() -> Self {
+        Self {
+            window: WindowConfig {
+                size: [800, 600],
+                title: "Rusty Ships".to_string(),
+            },
+            model: None,
+        }
+    }
+}
 
 fn main() {
+
+    let config: Config = match confy::load(APP_NAME, None) {
+        Ok(c)  => c,
+        Err(e) => die("Failed to load config", e)
+    };
+    let path = {
+        let result = 
+            confy::get_configuration_file_path(APP_NAME, None)
+            .map_err(|e| format!("{}", e))
+            .and_then(|mut conf| {conf.pop(); Ok(conf)})
+            .and_then(|path| Ok(path.join("assets")));
+        match result {
+            Ok(p)  => p,
+            Err(e) => die("Error getting assets path", e)
+        }
+    };
+    let model_name = match config.model {
+        Some(n) => n,
+        None    => die("No model provided", path.display())
+    };
 
     //   ____ _       _       _ _
     //  / ___| |     (_)_ __ (_) |_
@@ -31,11 +72,13 @@ fn main() {
             ContextBuilder,
         };
 
+        let (width, height) = config.window.size.into();
+        let title = config.window.title;
         let result =
             glium::Display::new(WindowBuilder::new()
-                                .with_inner_size(LogicalSize::new(INIT_WIDTH,
-                                                                  INIT_HEIGHT))
-                                .with_title(WINDOW_TITLE)
+                                .with_inner_size(LogicalSize::new(width,
+                                                                  height))
+                                .with_title(title)
                                 .with_decorations(false)
                                 .with_transparent(true),
                                 ContextBuilder::new(),
@@ -69,10 +112,9 @@ fn main() {
     // | | | | | | (_) | (_| |  __/ |
     // |_| |_| |_|\___/ \__,_|\___|_|
 
-    let path = Path::new("./res/assets");
     let mut model = {
         let result = framework::Model::new(&path,
-                                           MODEL_NAME);
+                                           &model_name);
         match result {
             Ok(m)  => m,
             Err(e) => die("Failed to load model", e)
