@@ -545,10 +545,10 @@ impl Model {
     }
 
     pub fn set_motion(&mut self, id: usize) -> usize {
-        let max = self.motions.len();
+        let max = self.motions.len() - 1;
         let i = match id {
-            s if s >= max => max,
-            _             => id
+            s if s > max => max,
+            _            => id
         };
         self.last_time = Instant::now();
         self.current_motion = i;
