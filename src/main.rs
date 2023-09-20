@@ -17,13 +17,19 @@ const TARGET_FPS:        u64 = 60;
 #[derive(Serialize, Deserialize)]
 struct Config {
     window: WindowConfig,
-    model: Option<String>,
+    model: ModelConfig,
 }
 
 #[derive(Serialize, Deserialize)]
 struct WindowConfig {
     size: [u16; 2],
     title: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ModelConfig {
+    name: Option<String>,
+    path: String,
 }
 
 impl std::default::Default for Config {
@@ -33,7 +39,10 @@ impl std::default::Default for Config {
                 size: [800, 600],
                 title: "Rusty Ships".to_string(),
             },
-            model: None,
+            model: ModelConfig {
+                name: None,
+                path: "assets".to_string(),
+            },
         }
     }
 }
@@ -49,13 +58,13 @@ fn main() {
             confy::get_configuration_file_path(APP_NAME, None)
             .map_err(|e| format!("{}", e))
             .and_then(|mut conf| {conf.pop(); Ok(conf)})
-            .and_then(|path| Ok(path.join("assets")));
+            .and_then(|path| Ok(path.join(config.model.path)));
         match result {
             Ok(p)  => p,
             Err(e) => die("Error getting assets path", e)
         }
     };
-    let model_name = match config.model {
+    let model_name = match config.model.name {
         Some(n) => n,
         None    => die("No model provided", path.display())
     };
