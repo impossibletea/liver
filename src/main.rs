@@ -1,3 +1,4 @@
+use std::time::{Instant, Duration};
 use glium::{
     glutin,
     Surface,
@@ -11,6 +12,7 @@ mod logging;
 use logging::*;
 
 const APP_NAME: &'static str = "rusty-ships";
+const TARGET_FPS:        u64 = 60;
 
 #[derive(Serialize, Deserialize)]
 struct Config {
@@ -146,6 +148,9 @@ fn main() {
     //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/
     //                                          |_|
 
+    let inc = 1000 / TARGET_FPS;
+    let mut limiter = Instant::now();
+
     event_loop.run(move |event,
                          _,
                          control_flow| {
@@ -158,6 +163,8 @@ fn main() {
             VirtualKeyCode as VKC,
         };
 
+        limiter += Duration::from_millis(inc);
+        control_flow.set_wait_until(limiter);
         model.update();
         let parts = model.parts_sorted();
 
