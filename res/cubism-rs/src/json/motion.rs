@@ -17,7 +17,7 @@ pub struct Meta {
     pub looped: bool,
     /// TODO:
     #[serde(rename = "AreBeziersRestricted")]
-    pub restricted_beziers: bool,
+    pub restricted_beziers: Option<bool>,
     /// A number of curves that the motion3.json file has.
     pub curve_count: usize,
     /// A number of segments that the motion3.json file has.
