@@ -1,9 +1,13 @@
-use std::time::{Instant, Duration};
+use std::{
+    iter::zip,
+    time::{Instant, Duration},
+};
 use glium::{
     glutin,
     Surface,
     uniform,
     texture::{SrgbTexture2d, RawImage2d},
+    implement_vertex,
 };
 use serde::{Serialize, Deserialize};
 
@@ -48,14 +52,16 @@ fn main() -> Result<(), String> {
     let config: Config = 
         confy::load(APP_NAME, None)
         .map_err(|e| format!("Failed to load config: {e}"))?;
+    let model_name =
+        config.model.name
+        .ok_or(format!("No model provided"))?;
     let path =
         confy::get_configuration_file_path(APP_NAME, None)
         .map_err(|e| format!("Error getting assets path: {e}"))
         .and_then(|mut conf| {conf.pop(); Ok(conf)})
-        .and_then(|path| Ok(path.join(config.model.path)))?;
-    let model_name =
-        config.model.name
-        .ok_or(format!("No model provided"))?;
+        .and_then(|path| Ok(path
+                            .join(config.model.path)
+                            .join(&model_name)))?;
 
     //   ____ _       _       _ _
     //  / ___| |     (_)_ __ (_) |_
@@ -98,38 +104,88 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("Failed to build shaders: {e}"))
     }?;
 
-    ////                      _      _
-    ////  _ __ ___   ___   __| | ___| |
-    //// | '_ ` _ \ / _ \ / _` |/ _ \ |
-    //// | | | | | | (_) | (_| |  __/ |
-    //// |_| |_| |_|\___/ \__,_|\___|_|
+    //                      _      _
+    //  _ __ ___   ___   __| | ___| |
+    // | '_ ` _ \ / _ \ / _` |/ _ \ |
+    // | | | | | | (_) | (_| |  __/ |
+    // |_| |_| |_|\___/ \__,_|\___|_|
 
-    //let mut model = {
-    //    let result = framework::Model::new(&path,
-    //                                       &model_name);
-    //    match result {
-    //        Ok(m)  => m,
-    //        Err(e) => die("Failed to load model", e)
-    //    }
-    //};
-    //info("Loaded model");
+    let model_json = {
+        use std::fs::File;
+        use cubism::json::model::Model3;
 
-    //let canvas = model.l2d.canvas_info();
+        let json_path = path.join(format!("{model_name}.model3.json"));
 
-    //let textures: Vec<SrgbTexture2d> =
-    //    model.textures.iter()
-    //    .map(|image| {
-    //        let image_dimensions = image.dimensions();
-    //        let image_raw =
-    //            RawImage2d::from_raw_rgba_reversed(&image.clone().into_raw(),
-    //                                               image_dimensions);
-    //        let texture = SrgbTexture2d::new(&display, image_raw);
-    //        match texture {
-    //            Ok(t)  => t,
-    //            Err(e) => die("Failed to load texture", e)
-    //        }
-    //    }).collect();
-    //info("Loaded textures");
+        File::open(json_path)
+        .map_err(|e| format!("Error opening json: {e}"))
+        .and_then(|f| Model3::from_reader(f)
+                      .map_err(|e| format!("Error parsing json: {e}")))
+    }?;
+
+    let mut model = {
+        use cubism::model::UserModel;
+
+        UserModel::from_model3(&path, &model_json)
+        .map_err(|e| format!("Error creating model: {e}"))
+    }?;
+
+    let textures: Vec<SrgbTexture2d> =
+        Result::from_iter(
+            model_json.file_references.textures.iter()
+            .map(|rpath| {
+                let tpath = path.join(&rpath);
+                let image = match image::open(&tpath) {
+                    Ok(i)  => i.to_rgba8(),
+                    Err(e) => return Err(format!("Error opening texture: {e}"))
+                };
+                let image_dimensions = image.dimensions();
+                let image_raw =
+                    RawImage2d::from_raw_rgba_reversed(
+                        &image.clone().into_raw(),
+                        image_dimensions);
+                SrgbTexture2d::new(&display, image_raw)
+                .map_err(|e| format!("Error creating texture: {e}"))
+            }))?;
+
+    let canvas_info = model.canvas_info();
+
+    model.update(0.);
+    let mut drawables: Vec<_> = model.drawables().collect();
+    drawables.sort_unstable_by_key(|d| d.render_order);
+
+    let buffers: Vec<_> = {
+        use glium::{
+            vertex::VertexBuffer,
+            index::{IndexBuffer, PrimitiveType},
+        };
+
+        //Result::from(
+            drawables.iter()
+            .map(|drawable| {
+                let verts: Vec<Vertex> =
+                    zip(drawable.vertex_positions, drawable.vertex_uvs)
+                    .map(|(pos, uv)| Vertex{
+                        position: *pos,
+                        texture_uv: *uv
+                    }).collect();
+                let vb =
+                    VertexBuffer::new(&display,
+                                      &verts)
+                    .unwrap();
+                    //.map_err(|e| format!("Failed to create vertex buffer: {e}"))?;
+
+                let ib =
+                    IndexBuffer::new(&display,
+                                     PrimitiveType::TrianglesList,
+                                     &drawable.indices)
+                    .unwrap();
+                    //.map_err(|e| format!("Failed to create index buffer: {e}"))?;
+
+                //Ok((vb, ib))
+                (vb, ib)
+            })//)
+            .collect()
+    };
 
     //                       _     _
     //   _____   _____ _ __ | |_  | | ___   ___  _ __
@@ -139,6 +195,7 @@ fn main() -> Result<(), String> {
     //                                          |_|
 
     let inc = 1000 / TARGET_FPS;
+    //let mut last_frame = Instant::now();
     let mut limiter = Instant::now();
 
     event_loop.run(move |event,
@@ -153,8 +210,12 @@ fn main() -> Result<(), String> {
             VirtualKeyCode as VKC,
         };
 
-        limiter += Duration::from_millis(inc);
-        control_flow.set_wait_until(limiter);
+        //model.update(last_frame.elapsed().as_secs_f32());
+        //last_frame = Instant::now();
+
+        //let mut drawables: Vec<_> = model.drawables().collect();
+        //drawables.sort_unstable_by_key(|d| d.render_order);
+
         //model.update();
         //let parts = model.parts_sorted();
 
@@ -191,30 +252,30 @@ fn main() -> Result<(), String> {
                           0.,
                           0.);
 
-        //for i in 0..parts.len() {
-        //    let uniforms = uniform!{
-        //        size: canvas.size_in_pixels,
-        //        origin: canvas.origin_in_pixels,
-        //        scale: canvas.pixels_per_unit,
-        //        opacity: model.opacity * parts[i].opacity,
-        //        tex: &textures[parts[i].texture_index],
-        //    };
+        for i in 0..model.drawable_count() {
+            let uniforms = uniform!{
+                size: canvas_info.0,
+                origin: canvas_info.1,
+                scale: canvas_info.2,
+                opacity: 1. as f32,
+                tex: &textures[1],
+            };
 
         //    if !parts[i].visibility {continue}
 
-        //    let params = &glium::DrawParameters {
+            let params = &glium::DrawParameters {
         //        blend: parts[i].blend,
-        //        .. Default::default()
-        //    };
+                .. Default::default()
+            };
 
-        //    frame
-        //    .draw(&buffers[i].0,
-        //          &buffers[i].1,
-        //          &program,
-        //          &uniforms,
-        //          &params)
-        //    .unwrap_or_else(|e| die("Failed to draw", e));
-        //}
+            frame
+            .draw(&buffers[i].0,
+                  &buffers[i].1,
+                  &program,
+                  &uniforms,
+                  &params)
+            .unwrap();
+        }
 
         frame
         .finish()
@@ -257,6 +318,16 @@ fn main() -> Result<(), String> {
             //}
             _ => {}
         }
+
+        //limiter += Duration::from_millis(inc);
+        //control_flow.set_wait_until(limiter);
     });
 }
 
+#[derive(Copy, Clone)]
+struct Vertex {
+    position: [f32; 2],
+    texture_uv: [f32; 2], 
+}
+
+implement_vertex!(Vertex, position, texture_uv);
