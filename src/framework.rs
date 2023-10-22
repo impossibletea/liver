@@ -3,21 +3,21 @@ use std::{
     path::PathBuf,
 };
 use glium::{
-    DrawParameters,
     Blend,
-    BlendingFunction,
-    LinearBlendingFactor as F,
     Surface,
     uniform,
+    DrawParameters,
+    BlendingFunction,
     implement_vertex,
     program::Program,
     vertex::VertexBuffer,
+    LinearBlendingFactor as F,
     index::{IndexBuffer, PrimitiveType},
     texture::{SrgbTexture2d, RawImage2d},
 };
 use cubism::{
+    motion::Motion,
     model::UserModel,
-    json::model::Model3,
 };
 
 //  __  __           _      _
@@ -29,8 +29,8 @@ use cubism::{
 pub struct Model {
     name:      String,
     path:      PathBuf,
-    json:      Model3,
-    moc:       UserModel,
+    model:     UserModel,
+    //motions:   Vec<Motion>,
     canvas:    CanvasInfo,
     textures:  Vec<SrgbTexture2d>,
     drawables: Vec<Drawable>,
@@ -84,36 +84,43 @@ impl Model {
             .join(&config.model.path)
             .join(&name);
 
-        //     _
-        //    (_)___  ___  _ __
-        //    | / __|/ _ \| '_ \
-        //  _ | \__ \ (_) | | | |
-        // (_)/ |___/\___/|_| |_|
-        //  |__/
+        //                        _      _ _____ 
+        //    _ __ ___   ___   __| | ___| |___ / 
+        //   | '_ ` _ \ / _ \ / _` |/ _ \ | |_ \ 
+        //  _| | | | | | (_) | (_| |  __/ |___) |
+        // (_)_| |_| |_|\___/ \__,_|\___|_|____/ 
 
-        let json =
+        let model3 =
             std::fs::File::open(path.join(format!("{name}.model3.json")))
             .map_err(|e| format!("Error opening json: {e}"))
-            .and_then(|f| Model3::from_reader(f)
+            .and_then(|f| cubism::json::model::Model3::from_reader(f)
                           .map_err(|e| format!("Error parsing json: {e}")))?;
 
-        //    _ __ ___   ___   ___
-        //   | '_ ` _ \ / _ \ / __|
-        //  _| | | | | | (_) | (__
-        // (_)_| |_| |_|\___/ \___|
+        //                        _      _
+        //    _ __ ___   ___   __| | ___| |
+        //   | '_ ` _ \ / _ \ / _` |/ _ \ |
+        //  _| | | | | | (_) | (_| |  __/ |
+        // (_)_| |_| |_|\___/ \__,_|\___|_|
 
-        let mut moc =
+        let model =
             UserModel::from_model3(&path,
-                                   &json)
+                                   &model3)
             .map_err(|e| format!("Error creating model: {e}"))?;
 
+        //                    _   _                 
+        //    _ __ ___   ___ | |_(_) ___  _ __  ___ 
+        //   | '_ ` _ \ / _ \| __| |/ _ \| '_ \/ __|
+        //  _| | | | | | (_) | |_| | (_) | | | \__ \
+        // (_)_| |_| |_|\___/ \__|_|\___/|_| |_|___/
+
+        println!("{:#?}", model3.file_references);
         //    ___ __ _ _ ____   ____ _ ___
         //   / __/ _` | '_ \ \ / / _` / __|
         //  | (_| (_| | | | \ V / (_| \__ \
         // (_)___\__,_|_| |_|\_/ \__,_|___/
 
         let canvas = {
-            let t = moc.canvas_info();
+            let t = model.canvas_info();
 
             CanvasInfo {
                 size:   t.0,
@@ -130,7 +137,7 @@ impl Model {
 
         let textures: Vec<_> =
             Result::from_iter(
-                json.file_references.textures.iter()
+                model3.file_references.textures.iter()
                 .map(|r| {
                     let t_path = path.join(&r);
                     let image =
@@ -155,7 +162,7 @@ impl Model {
 
         let mut drawables: Vec<_> =
             Result::from_iter(
-                moc.drawables()
+                model.drawables()
                 .map(|d| Drawable::new(d, display))
             )?;
         drawables.sort_unstable_by_key(|d| d.render_order);
@@ -169,8 +176,7 @@ impl Model {
         Ok(Self {
             name,
             path,
-            json,
-            moc,
+            model,
             canvas,
             textures,
             drawables,
