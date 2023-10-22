@@ -17,12 +17,12 @@ const TARGET_FPS:        u64 = 60;
 #[derive(Serialize, Deserialize)]
 struct Config {
     window: WindowConfig,
-    model: ModelConfig,
+    model:  ModelConfig,
 }
 
 #[derive(Serialize, Deserialize)]
 struct WindowConfig {
-    size: [u16; 2],
+    size:  [u16; 2],
     title: String,
 }
 
@@ -36,7 +36,7 @@ impl std::default::Default for Config {
     fn default() -> Self {
         Self {
             window: WindowConfig {
-                size: [800, 600],
+                size:  [800, 600],
                 title: "Rusty Ships".to_string(),
             },
             model: ModelConfig {
@@ -77,20 +77,20 @@ fn main() -> Result<(), String> {
             ContextBuilder,
             platform::unix::{WindowBuilderExtUnix, XWindowType},
         };
+        use glium::Display;
 
         let (width, height) = config.window.size.into();
         let title = config.window.title;
         let window_type = vec![XWindowType::Desktop];
 
-        glium::Display::new(WindowBuilder::new()
-                            .with_inner_size(LogicalSize::new(width,
-                                                              height))
-                            .with_title(title)
-                            .with_decorations(false)
-                            .with_transparent(true)
-                            .with_x11_window_type(window_type),
-                            ContextBuilder::new(),
-                            &event_loop)
+        Display::new(WindowBuilder::new()
+                     .with_inner_size(LogicalSize::new(width, height))
+                     .with_title(title)
+                     .with_decorations(false)
+                     .with_transparent(true)
+                     .with_x11_window_type(window_type),
+                     ContextBuilder::new(),
+                     &event_loop)
         .map_err(|e| format!("Failed to create display: {e}"))
     }?;
 
@@ -254,11 +254,11 @@ fn main() -> Result<(), String> {
 
         for i in 0..model.drawable_count() {
             let uniforms = uniform!{
-                size: canvas_info.0,
-                origin: canvas_info.1,
-                scale: canvas_info.2,
+                size:    canvas_info.0,
+                origin:  canvas_info.1,
+                scale:   canvas_info.2,
                 opacity: 1. as f32,
-                tex: &textures[1],
+                tex:     &textures[1],
             };
 
         //    if !parts[i].visibility {continue}
@@ -326,7 +326,7 @@ fn main() -> Result<(), String> {
 
 #[derive(Copy, Clone)]
 struct Vertex {
-    position: [f32; 2],
+    position:   [f32; 2],
     texture_uv: [f32; 2], 
 }
 
