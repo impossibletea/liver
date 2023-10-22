@@ -18,6 +18,13 @@ const APP_NAME:   &'static str = "rusty-ships";
 const CONFIG:     &'static str = "config";
 const TARGET_FPS: u64          = 60;
 
+//   ____             __ _
+//  / ___|___  _ __  / _(_) __ _
+// | |   / _ \| '_ \| |_| |/ _` |
+// | |__| (_) | | | |  _| | (_| |
+//  \____\___/|_| |_|_| |_|\__, |
+//                         |___/
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub window: WindowConfig,
@@ -51,28 +58,32 @@ impl std::default::Default for Config {
     }
 }
 
+//                  _
+//  _ __ ___   __ _(_)_ __
+// | '_ ` _ \ / _` | | '_ \
+// | | | | | | (_| | | | | |
+// |_| |_| |_|\__,_|_|_| |_|
+
 fn main() -> Result<(), String> {
 
-    let config: Config = 
+    //                    __ _
+    //    ___ ___  _ __  / _(_) __ _
+    //   / __/ _ \| '_ \| |_| |/ _` |
+    //  | (_| (_) | | | |  _| | (_| |
+    // (_)___\___/|_| |_|_| |_|\__, |
+    //                         |___/
+
+    let config: Config =
         confy::load(APP_NAME,
                     CONFIG)
         .map_err(|e| format!("Failed to load config: {e}"))?;
-    let model_name =
-        config.model.name
-        .ok_or(format!("No model provided"))?;
-    let path =
-        confy::get_configuration_file_path(APP_NAME, None)
-        .map_err(|e| format!("Error getting assets path: {e}"))
-        .and_then(|mut conf| {conf.pop(); Ok(conf)})
-        .and_then(|path| Ok(path
-                            .join(config.model.path)
-                            .join(&model_name)))?;
 
-    //   ____ _       _       _ _
-    //  / ___| |     (_)_ __ (_) |_
-    // | |  _| |     | | '_ \| | __|
-    // | |_| | |___  | | | | | | |_
-    //  \____|_____| |_|_| |_|_|\__|
+    //       _ _           _
+    //    __| (_)___ _ __ | | __ _ _   _
+    //   / _` | / __| '_ \| |/ _` | | | |
+    //  | (_| | \__ \ |_) | | (_| | |_| |
+    // (_)__,_|_|___/ .__/|_|\__,_|\__, |
+    //              |_|            |___/
 
     let event_loop = glutin::event_loop::EventLoop::new();
     let display = {
@@ -85,7 +96,7 @@ fn main() -> Result<(), String> {
         use glium::Display;
 
         let (width, height) = config.window.size.into();
-        let title = config.window.title;
+        let title = config.window.title.clone();
         let window_type = vec![XWindowType::Desktop];
 
         Display::new(WindowBuilder::new()
@@ -99,6 +110,13 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("Failed to create display: {e}"))
     }?;
 
+
+    //    _ __  _ __ ___   __ _ _ __ __ _ _ __ ___
+    //   | '_ \| '__/ _ \ / _` | '__/ _` | '_ ` _ \
+    //  _| |_) | | | (_) | (_| | | | (_| | | | | | |
+    // (_) .__/|_|  \___/ \__, |_|  \__,_|_| |_| |_|
+    //   |_|              |___/
+
     let program = {
         use glium::program::Program;
 
@@ -109,95 +127,19 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("Failed to build shaders: {e}"))
     }?;
 
-    //                      _      _
-    //  _ __ ___   ___   __| | ___| |
-    // | '_ ` _ \ / _ \ / _` |/ _ \ |
-    // | | | | | | (_) | (_| |  __/ |
-    // |_| |_| |_|\___/ \__,_|\___|_|
+    //                        _      _
+    //    _ __ ___   ___   __| | ___| |
+    //   | '_ ` _ \ / _ \ / _` |/ _ \ |
+    //  _| | | | | | (_) | (_| |  __/ |
+    // (_)_| |_| |_|\___/ \__,_|\___|_|
 
-    let model_json = {
-        use std::fs::File;
-        use cubism::json::model::Model3;
+    let mut model = Model::new(&config,
+                               &display)?;
 
-        let json_path = path.join(format!("{model_name}.model3.json"));
-
-        File::open(json_path)
-        .map_err(|e| format!("Error opening json: {e}"))
-        .and_then(|f| Model3::from_reader(f)
-                      .map_err(|e| format!("Error parsing json: {e}")))
-    }?;
-
-    let mut model = {
-        use cubism::model::UserModel;
-
-        UserModel::from_model3(&path, &model_json)
-        .map_err(|e| format!("Error creating model: {e}"))
-    }?;
-
-    let textures: Vec<SrgbTexture2d> =
-        Result::from_iter(
-            model_json.file_references.textures.iter()
-            .map(|rpath| {
-                let tpath = path.join(&rpath);
-                let image = match image::open(&tpath) {
-                    Ok(i)  => i.to_rgba8(),
-                    Err(e) => return Err(format!("Error opening texture: {e}"))
-                };
-                let image_dimensions = image.dimensions();
-                let image_raw =
-                    RawImage2d::from_raw_rgba_reversed(
-                        &image.clone().into_raw(),
-                        image_dimensions);
-                SrgbTexture2d::new(&display, image_raw)
-                .map_err(|e| format!("Error creating texture: {e}"))
-            }))?;
-
-    let canvas_info = model.canvas_info();
-
-    model.update(0.);
-    let mut drawables: Vec<_> = model.drawables().collect();
-    drawables.sort_unstable_by_key(|d| d.render_order);
-
-    let buffers: Vec<_> = {
-        use glium::{
-            vertex::VertexBuffer,
-            index::{IndexBuffer, PrimitiveType},
-        };
-
-        //Result::from(
-            drawables.iter()
-            .map(|drawable| {
-                let verts: Vec<Vertex> =
-                    zip(drawable.vertex_positions, drawable.vertex_uvs)
-                    .map(|(pos, uv)| Vertex{
-                        position: *pos,
-                        texture_uv: *uv
-                    }).collect();
-                let vb =
-                    VertexBuffer::new(&display,
-                                      &verts)
-                    .unwrap();
-                    //.map_err(|e| format!("Failed to create vertex buffer: {e}"))?;
-
-                let ib =
-                    IndexBuffer::new(&display,
-                                     PrimitiveType::TrianglesList,
-                                     &drawable.indices)
-                    .unwrap();
-                    //.map_err(|e| format!("Failed to create index buffer: {e}"))?;
-
-                //Ok((vb, ib))
-                (vb, ib)
-            })//)
-            .collect()
-    };
-
-    //                       _     _
-    //   _____   _____ _ __ | |_  | | ___   ___  _ __
-    //  / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \
-    // |  __/\ V /  __/ | | | |_  | | (_) | (_) | |_) |
-    //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/
-    //                                          |_|
+    //  _ _   _ __ _   _ _ __
+    // (_|_) | '__| | | | '_ \
+    //  _ _  | |  | |_| | | | |
+    // (_|_) |_|   \__,_|_| |_|
 
     let inc = 1000 / TARGET_FPS;
     //let mut last_frame = Instant::now();
@@ -256,32 +198,8 @@ fn main() -> Result<(), String> {
                           0.,
                           0.,
                           0.);
-
-        for i in 0..model.drawable_count() {
-            let uniforms = uniform!{
-                size:    canvas_info.0,
-                origin:  canvas_info.1,
-                scale:   canvas_info.2,
-                opacity: 1. as f32,
-                tex:     &textures[1],
-            };
-
-        //    if !parts[i].visibility {continue}
-
-            let params = &glium::DrawParameters {
-        //        blend: parts[i].blend,
-                .. Default::default()
-            };
-
-            frame
-            .draw(&buffers[i].0,
-                  &buffers[i].1,
-                  &program,
-                  &uniforms,
-                  &params)
-            .unwrap();
-        }
-
+        model.draw(&mut frame,
+                   &program);
         frame
         .finish()
         .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
@@ -329,10 +247,3 @@ fn main() -> Result<(), String> {
     });
 }
 
-#[derive(Copy, Clone)]
-struct Vertex {
-    position:   [f32; 2],
-    texture_uv: [f32; 2], 
-}
-
-implement_vertex!(Vertex, position, texture_uv);
