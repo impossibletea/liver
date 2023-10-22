@@ -11,25 +11,29 @@ use glium::{
 };
 use serde::{Serialize, Deserialize};
 
-const APP_NAME: &'static str = "rusty-ships";
-const TARGET_FPS:        u64 = 60;
+mod framework;
+use framework::Model;
+
+const APP_NAME:   &'static str = "rusty-ships";
+const CONFIG:     &'static str = "config";
+const TARGET_FPS: u64          = 60;
 
 #[derive(Serialize, Deserialize)]
-struct Config {
-    window: WindowConfig,
-    model:  ModelConfig,
+pub struct Config {
+    pub window: WindowConfig,
+    pub model:  ModelConfig,
 }
 
 #[derive(Serialize, Deserialize)]
-struct WindowConfig {
-    size:  [u16; 2],
-    title: String,
+pub struct WindowConfig {
+    pub size:  [u16; 2],
+    pub title: String,
 }
 
 #[derive(Serialize, Deserialize)]
-struct ModelConfig {
-    name: Option<String>,
-    path: String,
+pub struct ModelConfig {
+    pub name: Option<String>,
+    pub path: String,
 }
 
 impl std::default::Default for Config {
@@ -50,7 +54,8 @@ impl std::default::Default for Config {
 fn main() -> Result<(), String> {
 
     let config: Config = 
-        confy::load(APP_NAME, None)
+        confy::load(APP_NAME,
+                    CONFIG)
         .map_err(|e| format!("Failed to load config: {e}"))?;
     let model_name =
         config.model.name
