@@ -1,14 +1,5 @@
-use std::{
-    iter::zip,
-    time::{Instant, Duration},
-};
-use glium::{
-    glutin,
-    Surface,
-    uniform,
-    texture::{SrgbTexture2d, RawImage2d},
-    implement_vertex,
-};
+use std::time::{Instant, Duration};
+use glium::{glutin, Surface};
 use serde::{Serialize, Deserialize};
 
 mod framework;
@@ -142,8 +133,10 @@ fn main() -> Result<(), String> {
     // (_|_) |_|   \__,_|_| |_|
 
     let inc = 1000 / TARGET_FPS;
-    //let mut last_frame = Instant::now();
+    let mut last_frame = Instant::now();
     let mut limiter = Instant::now();
+
+    model.play();
 
     event_loop.run(move |event,
                          _,
@@ -151,47 +144,15 @@ fn main() -> Result<(), String> {
         use glutin::event::{
             Event,
             WindowEvent,
-            DeviceEvent,
-            KeyboardInput,
-            ElementState,
-            VirtualKeyCode as VKC,
+            //DeviceEvent,
+            //KeyboardInput,
+            //ElementState,
+            //VirtualKeyCode as VKC,
         };
 
-        //model.update(last_frame.elapsed().as_secs_f32());
-        //last_frame = Instant::now();
-
-        //let mut drawables: Vec<_> = model.drawables().collect();
-        //drawables.sort_unstable_by_key(|d| d.render_order);
-
-        //model.update();
-        //let parts = model.parts_sorted();
-
-        //let buffers: Vec<_> = {
-        //    use glium::{
-        //        vertex::VertexBuffer,
-        //        index::{IndexBuffer, PrimitiveType},
-        //    };
-
-        //    parts.iter()
-        //    .map(|part| {
-        //        let vbuffer = VertexBuffer::new(&display,
-        //                                        &part.vertices);
-        //        let v = match vbuffer {
-        //            Ok(v)  => v,
-        //            Err(e) => die("Failed to create vertex buffer", e)
-        //        };
-
-        //        let ibuffer = IndexBuffer::new(&display,
-        //                                      PrimitiveType::TrianglesList,
-        //                                      &part.indices);
-        //        let i = match ibuffer {
-        //            Ok(i)  => i,
-        //            Err(e) => die("Failed to create index buffer", e)
-        //        };
-
-        //        (v, i)
-        //    }).collect()
-        //};
+        model.update(last_frame.elapsed().as_secs_f32(),
+                     &display)
+        .unwrap();
 
         let mut frame = display.draw();
         frame.clear_color(0.,
@@ -199,7 +160,7 @@ fn main() -> Result<(), String> {
                           0.,
                           0.);
         model.draw(&mut frame,
-                   &program);
+                   &program).unwrap();
         frame
         .finish()
         .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
@@ -242,8 +203,8 @@ fn main() -> Result<(), String> {
             _ => {}
         }
 
-        //limiter += Duration::from_millis(inc);
-        //control_flow.set_wait_until(limiter);
+        limiter += Duration::from_millis(inc);
+        control_flow.set_wait_until(limiter);
     });
 }
 

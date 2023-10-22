@@ -1,7 +1,4 @@
-use std::{
-    iter::zip,
-    path::PathBuf,
-};
+use std::iter::zip;
 use glium::{
     Blend,
     Surface,
@@ -27,10 +24,11 @@ use cubism::{
 // |_|  |_|\___/ \__,_|\___|_|
 
 pub struct Model {
-    name:      String,
-    path:      PathBuf,
+    //name:      String,
+    //path:      PathBuf,
     model:     UserModel,
-    //motions:   Vec<Motion>,
+    motions:   Vec<Motion>,
+    current:   usize,
     canvas:    CanvasInfo,
     textures:  Vec<SrgbTexture2d>,
     drawables: Vec<Drawable>,
@@ -113,7 +111,16 @@ impl Model {
         //  _| | | | | | (_) | |_| | (_) | | | \__ \
         // (_)_| |_| |_|\___/ \__|_|\___/|_| |_|___/
 
-        println!("{:#?}", model3.file_references);
+        let motions =
+            Result::from_iter(
+                model3.file_references.motions.azur_lane.iter()
+                .map(|m| {
+                    Motion::from_motion3_json(path
+                                              .join(&m.file))
+                    .map_err(|e| format!("Error reading json: {e}"))
+                })
+            )?;
+
         //    ___ __ _ _ ____   ____ _ ___
         //   / __/ _` | '_ \ \ / / _` / __|
         //  | (_| (_| | | | \ V / (_| \__ \
@@ -174,9 +181,11 @@ impl Model {
         // |_|  \___|\__|\__,_|_|  |_| |_|
 
         Ok(Self {
-            name,
-            path,
+            //name,
+            //path,
             model,
+            motions,
+            current: 0,
             canvas,
             textures,
             drawables,
@@ -226,6 +235,61 @@ impl Model {
                 .map_err(|e| format!("Failed to draw: {e}"))
             }).collect()
         )
+    }
+
+    //                        _       _       
+    //  _ _   _   _ _ __   __| | __ _| |_ ___ 
+    // (_|_) | | | | '_ \ / _` |/ _` | __/ _ \
+    //  _ _  | |_| | |_) | (_| | (_| | ||  __/
+    // (_|_)  \__,_| .__/ \__,_|\__,_|\__\___|
+    //             |_|                        
+
+    pub fn update(&mut     self,
+                  dt:      f32,
+                  display: &glium::Display) -> Result<(), String> {
+        self.motions[self.current].set_looped(true);
+        self.motions[self.current].tick(dt as f64);
+        self.motions[self.current].update(self.model.model_mut()).unwrap();
+        self.model.update(dt);
+
+        let mut drawables: Vec<_> =
+            Result::from_iter(
+                self.model.drawables()
+                .map(|d| Drawable::new(d, display))
+            )?;
+        drawables.sort_unstable_by_key(|d| d.render_order);
+
+        Ok(())
+    }
+
+    //              _             
+    //  _ _   _ __ | | __ _ _   _ 
+    // (_|_) | '_ \| |/ _` | | | |
+    //  _ _  | |_) | | (_| | |_| |
+    // (_|_) | .__/|_|\__,_|\__, |
+    //       |_|            |___/ 
+
+    pub fn play(&mut self) {
+        self.motions[self.current].play();
+    }
+
+    //  _ _   _ __   __ _ _   _ ___  ___ 
+    // (_|_) | '_ \ / _` | | | / __|/ _ \
+    //  _ _  | |_) | (_| | |_| \__ \  __/
+    // (_|_) | .__/ \__,_|\__,_|___/\___|
+    //       |_|                         
+
+    pub fn pause(&mut self) {self.motions[self.current].pause()}
+
+    //                 _                     _   _             
+    //  _ _   ___  ___| |_   _ __ ___   ___ | |_(_) ___  _ __  
+    // (_|_) / __|/ _ \ __| | '_ ` _ \ / _ \| __| |/ _ \| '_ \ 
+    //  _ _  \__ \  __/ |_  | | | | | | (_) | |_| | (_) | | | |
+    // (_|_) |___/\___|\__| |_| |_| |_|\___/ \__|_|\___/|_| |_|
+    
+    pub fn set_motion(&mut self,
+                      index: usize) -> Option<()> {
+        None
     }
 }
 
@@ -308,15 +372,6 @@ impl Drawable {
             render_order,
         })
     }
-
-    //                        _       _
-    //  _ _   _   _ _ __   __| | __ _| |_ ___
-    // (_|_) | | | | '_ \ / _` |/ _` | __/ _ \
-    //  _ _  | |_| | |_) | (_| | (_| | ||  __/
-    // (_|_)  \__,_| .__/ \__,_|\__,_|\__\___|
-    //             |_|
-
-    fn update(&mut self) {}
 }
 
 // __     __        _
