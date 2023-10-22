@@ -1,3 +1,4 @@
+#![allow(rustdoc::broken_intra_doc_links)]
 //! Parses .motion3.json.
 use serde::{self, Deserialize, Serialize};
 

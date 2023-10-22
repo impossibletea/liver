@@ -1,3 +1,4 @@
+#![allow(rustdoc::broken_intra_doc_links)]
 //! Controller definitions.
 use fxhash::FxHashMap;
 

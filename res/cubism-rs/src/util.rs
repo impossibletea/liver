@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// A simple wrapper around a vec that returns the index of newly
 /// pushed/inserted elements and allows holes to exist.
 pub struct SimpleSlab<T> {

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! A model expression.
 
 use std::{fs, path::Path};

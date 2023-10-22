@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 // Inspired by the log crate
 use std::{
     ffi::CStr,

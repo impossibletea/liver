@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Motion.
 
 use std::fs;
