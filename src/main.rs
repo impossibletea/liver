@@ -69,16 +69,20 @@ fn main() -> Result<(), String> {
             window::WindowBuilder,
             dpi::LogicalSize,
             ContextBuilder,
+            platform::unix::{WindowBuilderExtUnix, XWindowType},
         };
 
         let (width, height) = config.window.size.into();
         let title = config.window.title;
+        let window_type = vec![XWindowType::Desktop];
+
         glium::Display::new(WindowBuilder::new()
                             .with_inner_size(LogicalSize::new(width,
                                                               height))
                             .with_title(title)
                             .with_decorations(false)
-                            .with_transparent(true),
+                            .with_transparent(true)
+                            .with_x11_window_type(window_type),
                             ContextBuilder::new(),
                             &event_loop)
         .map_err(|e| format!("Failed to create display: {e}"))
