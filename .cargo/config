@@ -1,3 +1,4 @@
 [env]
 CUBISM_CORE = { value = "res/CubismSdkForNative-4-r.7/", relative = true }
 
+# vim: ft=toml
