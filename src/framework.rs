@@ -301,8 +301,11 @@ impl Model {
     // (_|_) |___/\___|\__| |_| |_| |_|\___/ \__|_|\___/|_| |_|
     
     pub fn set_motion(&mut   self,
-                      index: usize) -> Option<()> {
-        None
+                      index: usize) -> Option<usize> {
+        if index >= self.motions.len() {return None};
+        self.current = index;
+        self.play();
+        Some(self.current)
     }
 }
 

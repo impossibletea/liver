@@ -94,8 +94,8 @@ fn main() -> Result<(), String> {
                      .with_inner_size(LogicalSize::new(width, height))
                      .with_title(title)
                      .with_decorations(false)
-                     .with_transparent(true)
-                     .with_x11_window_type(window_type),
+                     .with_transparent(true),
+                     //.with_x11_window_type(window_type),
                      ContextBuilder::new(),
                      &event_loop)
         .map_err(|e| format!("Failed to create display: {e}"))
@@ -144,10 +144,10 @@ fn main() -> Result<(), String> {
         use glutin::event::{
             Event,
             WindowEvent,
-            //DeviceEvent,
-            //KeyboardInput,
-            //ElementState,
-            //VirtualKeyCode as VKC,
+            DeviceEvent,
+            KeyboardInput,
+            ElementState,
+            VirtualKeyCode as VKC,
         };
 
         let elapsed =
@@ -181,36 +181,38 @@ fn main() -> Result<(), String> {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
                 _ => {}
             }
-            //Event::DeviceEvent {event, ..} => match event {
-            //    DeviceEvent::Key(KeyboardInput {
-            //        virtual_keycode: Some(vkc),
-            //        state: ElementState::Pressed,
-            //        ..
-            //    }) => {
-            //        let id = match vkc {VKC::Key0 | VKC::Numpad0 => Some(0),
-            //                            VKC::Key1 | VKC::Numpad1 => Some(1),
-            //                            VKC::Key2 | VKC::Numpad2 => Some(2),
-            //                            VKC::Key3 | VKC::Numpad3 => Some(3),
-            //                            VKC::Key4 | VKC::Numpad4 => Some(4),
-            //                            VKC::Key5 | VKC::Numpad5 => Some(5),
-            //                            VKC::Key6 | VKC::Numpad6 => Some(6),
-            //                            VKC::Key7 | VKC::Numpad7 => Some(7),
-            //                            VKC::Key8 | VKC::Numpad8 => Some(8),
-            //                            VKC::Key9 | VKC::Numpad9 => Some(9),
-            //                            VKC::A                   => Some(10),
-            //                            VKC::B                   => Some(11),
-            //                            VKC::C                   => Some(12),
-            //                            VKC::D                   => Some(13),
-            //                            VKC::E                   => Some(14),
-            //                            VKC::F                   => Some(15),
-            //                            _                        => None};
-            //        if let Some(id2) = id {
-            //            let result = model.set_motion(id2);
-            //            info(&format!("Set motion to {}", result));
-            //        }
-            //    }
-            //    _ => {}
-            //}
+            Event::DeviceEvent {event, ..} => match event {
+                DeviceEvent::Key(KeyboardInput {
+                    virtual_keycode: Some(vkc),
+                    state: ElementState::Pressed,
+                    ..
+                }) => {
+                    let id = match vkc {VKC::Key0 | VKC::Numpad0 => Some(0),
+                                        VKC::Key1 | VKC::Numpad1 => Some(1),
+                                        VKC::Key2 | VKC::Numpad2 => Some(2),
+                                        VKC::Key3 | VKC::Numpad3 => Some(3),
+                                        VKC::Key4 | VKC::Numpad4 => Some(4),
+                                        VKC::Key5 | VKC::Numpad5 => Some(5),
+                                        VKC::Key6 | VKC::Numpad6 => Some(6),
+                                        VKC::Key7 | VKC::Numpad7 => Some(7),
+                                        VKC::Key8 | VKC::Numpad8 => Some(8),
+                                        VKC::Key9 | VKC::Numpad9 => Some(9),
+                                        VKC::A                   => Some(10),
+                                        VKC::B                   => Some(11),
+                                        VKC::C                   => Some(12),
+                                        VKC::D                   => Some(13),
+                                        VKC::E                   => Some(14),
+                                        VKC::F                   => Some(15),
+                                        _                        => None};
+                    if let Some(id2) = id {
+                        let result =
+                            model
+                            .set_motion(id2)
+                            .ok_or_else(|| eprintln!("No motion {id2}"));
+                    }
+                }
+                _ => {}
+            }
             _ => {}
         }
 
