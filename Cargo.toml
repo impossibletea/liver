@@ -6,9 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-live2d-cubism-core-sys = { git = "https://github.com/James2022-rgb/live2d-cubism-core-sys" }
+cubism = { path = "res/cubism-rs" }
 glium = "0.32.1"
 image = "0.24.7"
 serde = { version = "1.0.188", features = ["derive"]}
-serde_json = "1.0.105"
 confy = "0.5.1"

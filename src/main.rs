@@ -1,42 +1,44 @@
 use std::time::{Instant, Duration};
-use glium::{
-    glutin,
-    Surface,
-    uniform,
-    texture::{SrgbTexture2d, RawImage2d},
-};
+use glium::{glutin, Surface};
 use serde::{Serialize, Deserialize};
 
 mod framework;
-mod logging;
-use logging::*;
+use framework::Model;
 
-const APP_NAME: &'static str = "rusty-ships";
-const TARGET_FPS:        u64 = 60;
+const APP_NAME:   &'static str = "rusty-ships";
+const CONFIG:     &'static str = "config";
+const TARGET_FPS: u64          = 60;
+
+//   ____             __ _
+//  / ___|___  _ __  / _(_) __ _
+// | |   / _ \| '_ \| |_| |/ _` |
+// | |__| (_) | | | |  _| | (_| |
+//  \____\___/|_| |_|_| |_|\__, |
+//                         |___/
 
 #[derive(Serialize, Deserialize)]
-struct Config {
-    window: WindowConfig,
-    model: ModelConfig,
+pub struct Config {
+    pub window: WindowConfig,
+    pub model:  ModelConfig,
 }
 
 #[derive(Serialize, Deserialize)]
-struct WindowConfig {
-    size: [u16; 2],
-    title: String,
+pub struct WindowConfig {
+    pub size:  [u16; 2],
+    pub title: String,
 }
 
 #[derive(Serialize, Deserialize)]
-struct ModelConfig {
-    name: Option<String>,
-    path: String,
+pub struct ModelConfig {
+    pub name: Option<String>,
+    pub path: String,
 }
 
 impl std::default::Default for Config {
     fn default() -> Self {
         Self {
             window: WindowConfig {
-                size: [800, 600],
+                size:  [800, 600],
                 title: "Rusty Ships".to_string(),
             },
             model: ModelConfig {
@@ -47,33 +49,32 @@ impl std::default::Default for Config {
     }
 }
 
-fn main() {
+//                  _
+//  _ __ ___   __ _(_)_ __
+// | '_ ` _ \ / _` | | '_ \
+// | | | | | | (_| | | | | |
+// |_| |_| |_|\__,_|_|_| |_|
 
-    let config: Config = match confy::load(APP_NAME, None) {
-        Ok(c)  => c,
-        Err(e) => die("Failed to load config", e)
-    };
-    let path = {
-        let result = 
-            confy::get_configuration_file_path(APP_NAME, None)
-            .map_err(|e| format!("{}", e))
-            .and_then(|mut conf| {conf.pop(); Ok(conf)})
-            .and_then(|path| Ok(path.join(config.model.path)));
-        match result {
-            Ok(p)  => p,
-            Err(e) => die("Error getting assets path", e)
-        }
-    };
-    let model_name = match config.model.name {
-        Some(n) => n,
-        None    => die("No model provided", path.display())
-    };
+fn main() -> Result<(), String> {
 
-    //   ____ _       _       _ _
-    //  / ___| |     (_)_ __ (_) |_
-    // | |  _| |     | | '_ \| | __|
-    // | |_| | |___  | | | | | | |_
-    //  \____|_____| |_|_| |_|_|\__|
+    //                    __ _
+    //    ___ ___  _ __  / _(_) __ _
+    //   / __/ _ \| '_ \| |_| |/ _` |
+    //  | (_| (_) | | | |  _| | (_| |
+    // (_)___\___/|_| |_|_| |_|\__, |
+    //                         |___/
+
+    let config: Config =
+        confy::load(APP_NAME,
+                    CONFIG)
+        .map_err(|e| format!("Failed to load config: {e}"))?;
+
+    //       _ _           _
+    //    __| (_)___ _ __ | | __ _ _   _
+    //   / _` | / __| '_ \| |/ _` | | | |
+    //  | (_| | \__ \ |_) | | (_| | |_| |
+    // (_)__,_|_|___/ .__/|_|\__,_|\__, |
+    //              |_|            |___/
 
     let event_loop = glutin::event_loop::EventLoop::new();
     let display = {
@@ -81,84 +82,61 @@ fn main() {
             window::WindowBuilder,
             dpi::LogicalSize,
             ContextBuilder,
+            platform::unix::{WindowBuilderExtUnix, XWindowType},
         };
+        use glium::Display;
 
         let (width, height) = config.window.size.into();
-        let title = config.window.title;
-        let result =
-            glium::Display::new(WindowBuilder::new()
-                                .with_inner_size(LogicalSize::new(width,
-                                                                  height))
-                                .with_title(title)
-                                .with_decorations(false)
-                                .with_transparent(true),
-                                ContextBuilder::new(),
-                                &event_loop);
+        let title = config.window.title.clone();
+        let window_type = vec![XWindowType::Desktop];
 
-        match result {
-            Ok(d)  => d,
-            Err(e) => die("Failed to create display", e)
-        }
-    };
-    info("Created a display");
+        Display::new(WindowBuilder::new()
+                     .with_inner_size(LogicalSize::new(width, height))
+                     .with_title(title)
+                     .with_decorations(false)
+                     .with_transparent(true),
+                     //.with_x11_window_type(window_type),
+                     ContextBuilder::new(),
+                     &event_loop)
+        .map_err(|e| format!("Failed to create display: {e}"))
+    }?;
+
+
+    //    _ __  _ __ ___   __ _ _ __ __ _ _ __ ___
+    //   | '_ \| '__/ _ \ / _` | '__/ _` | '_ ` _ \
+    //  _| |_) | | | (_) | (_| | | | (_| | | | | | |
+    // (_) .__/|_|  \___/ \__, |_|  \__,_|_| |_| |_|
+    //   |_|              |___/
 
     let program = {
         use glium::program::Program;
 
-        let program =
-            Program::from_source(&display,
-                                 include_str!("vert.glsl"),
-                                 include_str!("frag.glsl"),
-                                 None);
-        match program {
-            Ok(p)  => p,
-            Err(e) => die("Failed to build shaders", e)
-        }
-    };
-    info("Loaded shaders");
+        Program::from_source(&display,
+                             include_str!("vert.glsl"),
+                             include_str!("frag.glsl"),
+                             None)
+        .map_err(|e| format!("Failed to build shaders: {e}"))
+    }?;
 
-    //                      _      _
-    //  _ __ ___   ___   __| | ___| |
-    // | '_ ` _ \ / _ \ / _` |/ _ \ |
-    // | | | | | | (_) | (_| |  __/ |
-    // |_| |_| |_|\___/ \__,_|\___|_|
+    //                        _      _
+    //    _ __ ___   ___   __| | ___| |
+    //   | '_ ` _ \ / _ \ / _` |/ _ \ |
+    //  _| | | | | | (_) | (_| |  __/ |
+    // (_)_| |_| |_|\___/ \__,_|\___|_|
 
-    let mut model = {
-        let result = framework::Model::new(&path,
-                                           &model_name);
-        match result {
-            Ok(m)  => m,
-            Err(e) => die("Failed to load model", e)
-        }
-    };
-    info("Loaded model");
+    let mut model = Model::new(&config,
+                               &display)?;
 
-    let canvas = model.l2d.canvas_info();
-
-    let textures: Vec<SrgbTexture2d> =
-        model.textures.iter()
-        .map(|image| {
-            let image_dimensions = image.dimensions();
-            let image_raw =
-                RawImage2d::from_raw_rgba_reversed(&image.clone().into_raw(),
-                                                   image_dimensions);
-            let texture = SrgbTexture2d::new(&display, image_raw);
-            match texture {
-                Ok(t)  => t,
-                Err(e) => die("Failed to load texture", e)
-            }
-        }).collect();
-    info("Loaded textures");
-
-    //                       _     _
-    //   _____   _____ _ __ | |_  | | ___   ___  _ __
-    //  / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \
-    // |  __/\ V /  __/ | | | |_  | | (_) | (_) | |_) |
-    //  \___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/
-    //                                          |_|
+    //  _ _   _ __ _   _ _ __
+    // (_|_) | '__| | | | '_ \
+    //  _ _  | |  | |_| | | | |
+    // (_|_) |_|   \__,_|_| |_|
 
     let inc = 1000 / TARGET_FPS;
+    let mut last_frame = Instant::now();
     let mut limiter = Instant::now();
+
+    model.play();
 
     event_loop.run(move |event,
                          _,
@@ -172,37 +150,16 @@ fn main() {
             VirtualKeyCode as VKC,
         };
 
-        limiter += Duration::from_millis(inc);
-        control_flow.set_wait_until(limiter);
-        model.update();
-        let parts = model.parts_sorted();
+        let elapsed =
+            last_frame
+            .elapsed()
+            .as_secs_f64();
+        last_frame = Instant::now();
 
-        let buffers: Vec<_> = {
-            use glium::{
-                vertex::VertexBuffer,
-                index::{IndexBuffer, PrimitiveType},
-            };
-
-            parts.iter()
-            .map(|part| {
-                let vbuffer = VertexBuffer::new(&display,
-                                                &part.vertices);
-                let v = match vbuffer {
-                    Ok(v)  => v,
-                    Err(e) => die("Failed to create vertex buffer", e)
-                };
-
-                let ibuffer = IndexBuffer::new(&display,
-                                              PrimitiveType::TrianglesList,
-                                              &part.indices);
-                let i = match ibuffer {
-                    Ok(i)  => i,
-                    Err(e) => die("Failed to create index buffer", e)
-                };
-
-                (v, i)
-            }).collect()
-        };
+        model
+        .update(elapsed,
+                &display)
+        .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
 
         let mut frame = display.draw();
         frame.clear_color(0.,
@@ -210,34 +167,14 @@ fn main() {
                           0.,
                           0.);
 
-        for i in 0..parts.len() {
-            let uniforms = uniform!{
-                size: canvas.size_in_pixels,
-                origin: canvas.origin_in_pixels,
-                scale: canvas.pixels_per_unit,
-                opacity: model.opacity * parts[i].opacity,
-                tex: &textures[parts[i].texture_index],
-            };
-
-            if !parts[i].visibility {continue}
-
-            let params = &glium::DrawParameters {
-                blend: parts[i].blend,
-                .. Default::default()
-            };
-
-            frame
-            .draw(&buffers[i].0,
-                  &buffers[i].1,
-                  &program,
-                  &uniforms,
-                  &params)
-            .unwrap_or_else(|e| die("Failed to draw", e));
-        }
+        model
+        .draw(&mut frame,
+              &program)
+        .unwrap_or_else(|e| eprintln!("Failed to draw model: {e}"));
 
         frame
         .finish()
-        .unwrap_or_else(|e| err("Failed to create frame", e));
+        .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
 
         match event {
             Event::WindowEvent {event, ..} => match event {
@@ -268,14 +205,19 @@ fn main() {
                                         VKC::F                   => Some(15),
                                         _                        => None};
                     if let Some(id2) = id {
-                        let result = model.set_motion(id2);
-                        info(&format!("Set motion to {}", result));
+                        let result =
+                            model
+                            .set_motion(id2)
+                            .ok_or_else(|| eprintln!("No motion {id2}"));
                     }
                 }
                 _ => {}
             }
             _ => {}
         }
+
+        limiter += Duration::from_millis(inc);
+        control_flow.set_wait_until(limiter);
     });
 }
 

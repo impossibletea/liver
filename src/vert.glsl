@@ -5,6 +5,7 @@ in vec2 texture_uv;
 out vec2 frag_uv;
 
 uniform vec2 size;
+uniform vec2 origin;
 uniform float scale;
 
 void main() {
