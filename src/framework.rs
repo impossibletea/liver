@@ -1,6 +1,10 @@
-use std::iter::zip;
+use std::{
+    fs::File,
+    iter::zip,
+};
 use glium::{
     Blend,
+    Display,
     Surface,
     uniform,
     DrawParameters,
@@ -13,8 +17,15 @@ use glium::{
     texture::{SrgbTexture2d, RawImage2d},
 };
 use cubism::{
+    core,
     motion::Motion,
     model::UserModel,
+    json::model::Model3,
+};
+use crate::{
+    Config,
+    APP_NAME,
+    CONFIG,
 };
 
 //  __  __           _      _
@@ -55,8 +66,8 @@ impl Model {
     //  _ _  | | | |  __/\ V  V /
     // (_|_) |_| |_|\___| \_/\_/
 
-    pub fn new(config:  &crate::Config,
-               display: &glium::Display) -> Result<Self, String> {
+    pub fn new(config:  &Config,
+               display: &Display) -> Result<Self, String> {
 
         //    _ __   __ _ _ __ ___   ___
         //   | '_ \ / _` | '_ ` _ \ / _ \
@@ -75,8 +86,8 @@ impl Model {
         //   |_|
 
         let path =
-            confy::get_configuration_file_path(crate::APP_NAME,
-                                               crate::CONFIG)
+            confy::get_configuration_file_path(APP_NAME,
+                                               CONFIG)
             .map_err(|e| format!("Error getting assets path: {e}"))
             .and_then(|mut conf| {conf.pop(); Ok(conf)})?
             .join(&config.model.path)
@@ -89,9 +100,9 @@ impl Model {
         // (_)_| |_| |_|\___/ \__,_|\___|_|____/ 
 
         let model3 =
-            std::fs::File::open(path.join(format!("{name}.model3.json")))
+            File::open(path.join(format!("{name}.model3.json")))
             .map_err(|e| format!("Error opening json: {e}"))
-            .and_then(|f| cubism::json::model::Model3::from_reader(f)
+            .and_then(|f| Model3::from_reader(f)
                           .map_err(|e| format!("Error parsing json: {e}")))?;
 
         //                        _      _
@@ -245,12 +256,14 @@ impl Model {
     //             |_|                        
 
     pub fn update(&mut     self,
-                  dt:      f32,
-                  display: &glium::Display) -> Result<(), String> {
+                  dt:      f64,
+                  display: &Display) -> Result<(), String> {
         self.motions[self.current].set_looped(true);
-        self.motions[self.current].tick(dt as f64);
-        self.motions[self.current].update(self.model.model_mut()).unwrap();
-        self.model.update(dt);
+        self.motions[self.current].tick(dt);
+        self.motions[self.current]
+        .update(self.model.model_mut())
+        .map_err(|e| format!("Failed to update model: {e}"))?;
+        self.model.model_mut().update();
 
         let mut drawables: Vec<_> =
             Result::from_iter(
@@ -258,6 +271,8 @@ impl Model {
                 .map(|d| Drawable::new(d, display))
             )?;
         drawables.sort_unstable_by_key(|d| d.render_order);
+
+        self.drawables = drawables;
 
         Ok(())
     }
@@ -269,9 +284,7 @@ impl Model {
     // (_|_) | .__/|_|\__,_|\__, |
     //       |_|            |___/ 
 
-    pub fn play(&mut self) {
-        self.motions[self.current].play();
-    }
+    pub fn play(&mut self) {self.motions[self.current].play()}
 
     //  _ _   _ __   __ _ _   _ ___  ___ 
     // (_|_) | '_ \ / _` | | | / __|/ _ \
@@ -287,7 +300,7 @@ impl Model {
     //  _ _  \__ \  __/ |_  | | | | | | (_) | |_| | (_) | | | |
     // (_|_) |___/\___|\__| |_| |_| |_|\___/ \__|_|\___/|_| |_|
     
-    pub fn set_motion(&mut self,
+    pub fn set_motion(&mut   self,
                       index: usize) -> Option<()> {
         None
     }
@@ -300,8 +313,8 @@ impl Drawable {
     //  _ _  | | | |  __/\ V  V /
     // (_|_) |_| |_|\___| \_/\_/
 
-    fn new(drawable: cubism::core::Drawable,
-           display:  &glium::Display) -> Result<Self, String> {
+    fn new(drawable: core::Drawable,
+           display:  &Display) -> Result<Self, String> {
 
         //                 _              _            __  __
         // __   _____ _ __| |_ _____  __ | |__  _   _ / _|/ _| ___ _ __
@@ -380,7 +393,7 @@ impl Drawable {
 //   \ V /  __/ |  | ||  __/>  <
 //    \_/ \___|_|   \__\___/_/\_\
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct Vert {
     position:   [f32; 2],
     texture_uv: [f32; 2],

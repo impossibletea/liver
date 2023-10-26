@@ -150,17 +150,28 @@ fn main() -> Result<(), String> {
             //VirtualKeyCode as VKC,
         };
 
-        model.update(last_frame.elapsed().as_secs_f32(),
-                     &display)
-        .unwrap();
+        let elapsed =
+            last_frame
+            .elapsed()
+            .as_secs_f64();
+        last_frame = Instant::now();
+
+        model
+        .update(elapsed,
+                &display)
+        .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
 
         let mut frame = display.draw();
         frame.clear_color(0.,
                           0.,
                           0.,
                           0.);
-        model.draw(&mut frame,
-                   &program).unwrap();
+
+        model
+        .draw(&mut frame,
+              &program)
+        .unwrap_or_else(|e| eprintln!("Failed to draw model: {e}"));
+
         frame
         .finish()
         .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
