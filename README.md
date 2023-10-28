@@ -32,9 +32,10 @@ name = ''             # model name
 path = 'assets'       # subdirectory where the models are stored
 ```
 
-Configuration assumes that the `name` is the name of directory inside of
-`path`, and that the same name is used for `model3.json` file contained inside
-of that folder.
+> [!IMPORTANT]
+> Configuration assumes that the `name` is the name of directory inside of
+> `path`, and that the same name is used for `model3.json` file contained
+> inside of that folder.
 
 ## Building
 
