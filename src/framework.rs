@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     iter::zip,
+    collections::HashMap,
 };
 use glium::{
     Blend,
@@ -38,8 +39,8 @@ pub struct Model {
     //name:      String,
     //path:      PathBuf,
     model:     UserModel,
-    motions:   Vec<Motion>,
-    current:   usize,
+    motions:   HashMap<String, Motion>,
+    current:   String,
     canvas:    CanvasInfo,
     textures:  Vec<SrgbTexture2d>,
     drawables: Vec<Drawable>,
@@ -122,15 +123,42 @@ impl Model {
         //  _| | | | | | (_) | |_| | (_) | | | \__ \
         // (_)_| |_| |_|\___/ \__|_|\___/|_| |_|___/
 
-        let motions =
-            Result::from_iter(
-                model3.file_references.motions.azur_lane.iter()
-                .map(|m| {
-                    Motion::from_motion3_json(path
-                                              .join(&m.file))
-                    .map_err(|e| format!("Error reading json: {e}"))
-                })
-            )?;
+        let mut motions = HashMap::new();
+
+        let mut motion_files = model3.file_references.motions.azur_lane.iter();
+        while let Some(m) = motion_files.next() {
+            let name =
+                m.file.file_name()
+                .and_then(|f| f.to_str())
+                .and_then(|s| s.split('.').next())
+                .map(|s| s.to_string());
+
+            let n = match name {
+                Some(s) => s,
+                None    => {eprintln!("Fucked up motion name"); continue}
+            };
+
+            let motion = Motion::from_motion3_json(path
+                                                   .join(&m.file));
+
+            let m = match motion {
+                Ok(r)  => r,
+                Err(e) => {eprintln!("Failed to load motion: {e}"); continue}
+            };
+
+            match motions.insert(n.clone(), m) {
+                Some(_) => eprintln!("Duplicated motion {n}"),
+                None    => eprintln!("Loaded motion {n}")
+            }
+        }
+
+        //                                  _   
+        //    ___ _   _ _ __ _ __ ___ _ __ | |_ 
+        //   / __| | | | '__| '__/ _ \ '_ \| __|
+        //  | (__| |_| | |  | | |  __/ | | | |_ 
+        // (_)___|\__,_|_|  |_|  \___|_| |_|\__|
+
+        let current = "idle".to_string();
 
         //    ___ __ _ _ ____   ____ _ ___
         //   / __/ _` | '_ \ \ / / _` / __|
@@ -196,7 +224,7 @@ impl Model {
             //path,
             model,
             motions,
-            current: 0,
+            current,
             canvas,
             textures,
             drawables,
@@ -258,11 +286,15 @@ impl Model {
     pub fn update(&mut     self,
                   dt:      f64,
                   display: &Display) -> Result<(), String> {
-        self.motions[self.current].set_looped(true);
-        self.motions[self.current].tick(dt);
-        self.motions[self.current]
-        .update(self.model.model_mut())
-        .map_err(|e| format!("Failed to update model: {e}"))?;
+        self.motions
+        .get_mut(&self.current)
+        .ok_or(format!("No motion {}", self.current))
+        .and_then(|m| {
+            //m.set_looped(true);
+            m.tick(dt);
+            m.update(self.model.model_mut())
+            .map_err(|e| format!("Failed to update model: {e}"))
+        })?;
         self.model.model_mut().update();
 
         let mut drawables: Vec<_> =
@@ -284,7 +316,12 @@ impl Model {
     // (_|_) | .__/|_|\__,_|\__, |
     //       |_|            |___/ 
 
-    pub fn play(&mut self) {self.motions[self.current].play()}
+    pub fn play(&mut self) {
+        self.motions
+        .get_mut(&self.current)
+        .map(|m| m.play())
+        .unwrap_or(())
+    }
 
     //  _ _   _ __   __ _ _   _ ___  ___ 
     // (_|_) | '_ \ / _` | | | / __|/ _ \
@@ -292,7 +329,12 @@ impl Model {
     // (_|_) | .__/ \__,_|\__,_|___/\___|
     //       |_|                         
 
-    pub fn pause(&mut self) {self.motions[self.current].pause()}
+    pub fn pause(&mut self) {
+        self.motions
+        .get_mut(&self.current)
+        .map(|m| m.pause())
+        .unwrap_or(())
+    }
 
     //                 _                     _   _             
     //  _ _   ___  ___| |_   _ __ ___   ___ | |_(_) ___  _ __  
@@ -302,10 +344,11 @@ impl Model {
     
     pub fn set_motion(&mut   self,
                       index: usize) -> Option<usize> {
-        if index >= self.motions.len() {return None};
-        self.current = index;
-        self.play();
-        Some(self.current)
+        //if index >= self.motions.len() {return None};
+        //self.current = index;
+        //self.play();
+        //Some(self.current)
+        None
     }
 }
 
