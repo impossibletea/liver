@@ -7,10 +7,12 @@ out vec2 frag_uv;
 uniform vec2 size;
 uniform vec2 origin;
 uniform float scale;
+uniform float aspect;
 
 void main() {
 	frag_uv = texture_uv;
 	vec2 pos = 2 * scale * position / size;
+	pos.y *= aspect;
 	gl_Position = vec4(pos, 0.0, 1.0);
 }
 
