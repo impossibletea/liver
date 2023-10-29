@@ -100,10 +100,10 @@ fn main() -> Result<(), String> {
     // (_)__,_|_|___/ .__/|_|\__,_|\__, |
     //              |_|            |___/
 
+    let (width, height) = config.window.size.into();
     let event_loop = EventLoop::new();
     let display = {
         let title = config.window.title.clone();
-        let (width, height) = config.window.size.into();
         let window_type = vec![XWindowType::Normal];
 
         Display::new(WindowBuilder::new()
@@ -148,12 +148,32 @@ fn main() -> Result<(), String> {
 
     let mut last_frame = Instant::now();
 
+    let mut aspect = {
+        let r = max(width, height) as f32 / min(width, height) as f32;
+        let (x, y) = match config.window.fit {
+            FitConfig::Contain => (1./r, 1.),
+            FitConfig::Cover   => (1.,    r),
+        };
+        if width > height {[x, y]} else {[y, x]}
+    };
+
     event_loop.run(move |event,
                          _,
                          control_flow| {
         match event {
             Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
+                WindowEvent::Resized(s)     => {
+                    aspect = {
+                        let (w, h) = (s.width, s.height);
+                        let r = max(w, h) as f32 / min(w, h) as f32;
+                        let (x, y) = match config.window.fit {
+                            FitConfig::Contain => (1./r, 1.),
+                            FitConfig::Cover   => (1.,    r),
+                        };
+                        if w > h {[x, y]} else {[y, x]}
+                    };
+                }
                 _ => {}
             }
             Event::MainEventsCleared => {
@@ -166,16 +186,6 @@ fn main() -> Result<(), String> {
                 model
                 .update(elapsed)
                 .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
-
-                let aspect = {
-                    let (w, h) = display.get_framebuffer_dimensions();
-                    let r = max(w, h) as f32 / min(w, h) as f32;
-                    let (x, y) = match config.window.fit {
-                        FitConfig::Contain => (1./r, 1.),
-                        FitConfig::Cover   => (1.,    r),
-                    };
-                    if w > h {[x, y]} else {[y, x]}
-                };
 
                 //      _                          _             _   
                 //   __| |_ __ __ ___      __  ___| |_ __ _ _ __| |_ 
