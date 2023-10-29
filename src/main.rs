@@ -36,7 +36,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize)]
 pub struct WindowConfig {
-    pub size:  [u16; 2],
+    pub size:  [u32; 2],
     pub title: String,
 }
 
@@ -92,12 +92,13 @@ fn main() -> Result<(), String> {
 
     let event_loop = EventLoop::new();
     let display = {
-        let (width, height) = config.window.size.into();
         let title = config.window.title.clone();
-        let window_type = vec![XWindowType::Desktop];
+        let (width, height) = config.window.size.into();
+        let window_type = vec![XWindowType::Normal];
 
         Display::new(WindowBuilder::new()
-                     .with_inner_size(LogicalSize::new(width, height))
+                     .with_inner_size(LogicalSize::new(width,
+                                                       height))
                      .with_title(title)
                      .with_decorations(false)
                      .with_transparent(true)
@@ -106,7 +107,6 @@ fn main() -> Result<(), String> {
                      &event_loop)
         .map_err(|e| format!("Failed to create display: {e}"))
     }?;
-
 
     //    _ __  _ __ ___   __ _ _ __ __ _ _ __ ___
     //   | '_ \| '__/ _ \ / _` | '__/ _` | '_ ` _ \
@@ -153,6 +153,17 @@ fn main() -> Result<(), String> {
         .update(elapsed)
         .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
 
+        let aspect = {
+            let (w, h) = display.get_framebuffer_dimensions();
+            w as f32 / h as f32
+        };
+
+        //      _                          _             _   
+        //   __| |_ __ __ ___      __  ___| |_ __ _ _ __| |_ 
+        //  / _` | '__/ _` \ \ /\ / / / __| __/ _` | '__| __|
+        // | (_| | | | (_| |\ V  V /  \__ \ || (_| | |  | |_ 
+        //  \__,_|_|  \__,_| \_/\_/   |___/\__\__,_|_|   \__|
+
         let mut frame = display.draw();
         frame.clear_color(0.,
                           0.,
@@ -161,12 +172,19 @@ fn main() -> Result<(), String> {
 
         model
         .draw(&mut frame,
-              &program)
+              &program,
+              aspect)
         .unwrap_or_else(|e| eprintln!("Failed to draw model: {e}"));
 
         frame
         .finish()
         .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
+
+        //      _                       __ _       _     _     
+        //   __| |_ __ __ ___      __  / _(_)_ __ (_)___| |__  
+        //  / _` | '__/ _` \ \ /\ / / | |_| | '_ \| / __| '_ \ 
+        // | (_| | | | (_| |\ V  V /  |  _| | | | | \__ \ | | |
+        //  \__,_|_|  \__,_| \_/\_/   |_| |_|_| |_|_|___/_| |_|
 
         limiter += Duration::from_millis(inc);
         control_flow.set_wait_until(limiter);

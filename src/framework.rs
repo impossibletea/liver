@@ -311,7 +311,8 @@ impl Model {
 
     pub fn draw<T: Surface>(&self,
                             frame:   &mut T,
-                            program: &Program) -> Result<(), String> {
+                            program: &Program,
+                            aspect:  f32) -> Result<(), String> {
         let drawables = self.sorted();
 
         Result::from(
@@ -323,6 +324,7 @@ impl Model {
                     scale:   self.canvas.scale,
                     opacity: d.opacity,
                     tex:     &self.textures[d.texture_index as usize],
+                    aspect:  aspect,
                 };
 
                 let params = &DrawParameters {
