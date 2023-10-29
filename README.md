@@ -26,12 +26,18 @@ documentation[^confy]). Config and its default parameters are as follows:
 [window]
 size = [800, 600]     # window width/height
 title = 'Rusty Ships' # window title
+fit = 'Cover'         # fit mode
 
 [model]
 name = ''             # model name
 path = 'assets'       # subdirectory where the models are stored
 motions = []          # these motions will be queued on loading
 ```
+
+Fit mode represents how the canvas will fit in the window. Currently two modes
+are supported:
+* Cover: scaled and clipped, takes all the window
+* Contain: scaled so that all the canvas is shown
 
 > [!IMPORTANT]
 > Configuration assumes that the `name` is the name of directory inside of

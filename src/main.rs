@@ -1,4 +1,7 @@
-use std::time::{Instant, Duration};
+use std::{
+    cmp::{max, min},
+    time::{Instant, Duration},
+};
 use glium::{
     Display,
     Surface,
@@ -38,6 +41,7 @@ pub struct Config {
 pub struct WindowConfig {
     pub size:  [u32; 2],
     pub title: String,
+    pub fit:   FitConfig,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -47,12 +51,19 @@ pub struct ModelConfig {
     pub motions: Option<Vec<String>>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub enum FitConfig {
+    Contain,
+    Cover,
+}
+
 impl std::default::Default for Config {
     fn default() -> Self {
         Self {
             window: WindowConfig {
                 size:  [800, 600],
                 title: "Rusty Ships".to_string(),
+                fit:   FitConfig::Cover,
             },
             model: ModelConfig {
                 name:    None,
@@ -155,7 +166,11 @@ fn main() -> Result<(), String> {
 
         let aspect = {
             let (w, h) = display.get_framebuffer_dimensions();
-            w as f32 / h as f32
+            let r = max(w, h) as f32 / min(w, h) as f32;
+            match config.window.fit {
+                FitConfig::Contain => if w > h {[1./r, 1.]} else {[1., 1./r]}
+                FitConfig::Cover   => if w > h {[1., r]} else {[r, 1.]}
+            }
         };
 
         //      _                          _             _   
