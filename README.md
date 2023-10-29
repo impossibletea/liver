@@ -30,6 +30,7 @@ title = 'Rusty Ships' # window title
 [model]
 name = ''             # model name
 path = 'assets'       # subdirectory where the models are stored
+motions = []          # these motions will be queued on loading
 ```
 
 > [!IMPORTANT]
