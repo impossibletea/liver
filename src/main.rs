@@ -176,6 +176,9 @@ fn main() -> Result<(), String> {
         .finish()
         .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
 
+        limiter += Duration::from_millis(inc);
+        control_flow.set_wait_until(limiter);
+
         match event {
             Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
@@ -183,9 +186,6 @@ fn main() -> Result<(), String> {
             }
             _ => {}
         }
-
-        limiter += Duration::from_millis(inc);
-        control_flow.set_wait_until(limiter);
     });
 }
 
