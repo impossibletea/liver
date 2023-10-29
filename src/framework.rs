@@ -312,7 +312,7 @@ impl Model {
     pub fn draw<T: Surface>(&self,
                             frame:   &mut T,
                             program: &Program,
-                            aspect:  f32) -> Result<(), String> {
+                            aspect:  [f32; 2]) -> Result<(), String> {
         let drawables = self.sorted();
 
         Result::from(
