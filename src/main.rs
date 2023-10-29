@@ -1,5 +1,17 @@
 use std::time::{Instant, Duration};
-use glium::{glutin, Surface};
+use glium::{
+    Display,
+    Surface,
+    glutin::{
+        ContextBuilder,
+        dpi::LogicalSize,
+        event_loop::EventLoop,
+        window::WindowBuilder,
+        event::{Event, WindowEvent},
+        platform::unix::{WindowBuilderExtUnix, XWindowType},
+    },
+    program::Program,
+};
 use serde::{Serialize, Deserialize};
 
 mod framework;
@@ -78,16 +90,8 @@ fn main() -> Result<(), String> {
     // (_)__,_|_|___/ .__/|_|\__,_|\__, |
     //              |_|            |___/
 
-    let event_loop = glutin::event_loop::EventLoop::new();
+    let event_loop = EventLoop::new();
     let display = {
-        use glutin::{
-            window::WindowBuilder,
-            dpi::LogicalSize,
-            ContextBuilder,
-            platform::unix::{WindowBuilderExtUnix, XWindowType},
-        };
-        use glium::Display;
-
         let (width, height) = config.window.size.into();
         let title = config.window.title.clone();
         let window_type = vec![XWindowType::Desktop];
@@ -96,8 +100,8 @@ fn main() -> Result<(), String> {
                      .with_inner_size(LogicalSize::new(width, height))
                      .with_title(title)
                      .with_decorations(false)
-                     .with_transparent(true),
-                     //.with_x11_window_type(window_type),
+                     .with_transparent(true)
+                     .with_x11_window_type(window_type),
                      ContextBuilder::new(),
                      &event_loop)
         .map_err(|e| format!("Failed to create display: {e}"))
@@ -111,8 +115,6 @@ fn main() -> Result<(), String> {
     //   |_|              |___/
 
     let program = {
-        use glium::program::Program;
-
         Program::from_source(&display,
                              include_str!("vert.glsl"),
                              include_str!("frag.glsl"),
@@ -141,15 +143,6 @@ fn main() -> Result<(), String> {
     event_loop.run(move |event,
                          _,
                          control_flow| {
-        use glutin::event::{
-            Event,
-            WindowEvent,
-            DeviceEvent,
-            KeyboardInput,
-            ElementState,
-            VirtualKeyCode as VKC,
-        };
-
         let elapsed =
             last_frame
             .elapsed()
@@ -157,8 +150,7 @@ fn main() -> Result<(), String> {
         last_frame = Instant::now();
 
         model
-        .update(elapsed,
-                &display)
+        .update(elapsed)
         .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
 
         let mut frame = display.draw();
