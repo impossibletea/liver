@@ -62,10 +62,11 @@ struct MotionData {
 //  \__\_\\__,_|\___|\__,_|\___|
                              
 struct Queue {
-    lineup:   VecDeque<String>,
-    current:  Option<String>,
-    duration: f32,
-    elapsed:  f32,
+    lineup:    VecDeque<String>,
+    current:   Option<String>,
+    duration:  f32,
+    elapsed:   f32,
+    is_paused: bool,
 }
 
 //   ____                          ___        __       
@@ -191,10 +192,11 @@ impl Model {
         //      |_|                      
 
         let queue = Queue {
-            lineup:   VecDeque::new(),
-            current:  None,
-            duration: 0.,
-            elapsed:  0.,
+            lineup:    VecDeque::new(),
+            current:   None,
+            duration:  0.,
+            elapsed:   0.,
+            is_paused: false,
         };
 
         //    ___ __ _ _ ____   ____ _ ___
@@ -320,6 +322,7 @@ impl Model {
                   dt:      f64,
                   display: &Display) -> Result<(), String> {
         let queue = &mut self.queue;
+        if queue.is_paused {return Ok(());}
         queue.elapsed += dt as f32;
 
         if queue.elapsed >= queue.duration {
@@ -366,6 +369,7 @@ impl Model {
     //       |_|            |___/ 
 
     pub fn play(&mut self) -> Option<()> {
+        self.queue.is_paused = false;
         let current = match &self.queue.current {
             Some(c) => c,
             None    => return None
@@ -383,6 +387,7 @@ impl Model {
     //       |_|                         
 
     pub fn pause(&mut self) -> Option<()> {
+        self.queue.is_paused = true;
         let current = match &self.queue.current {
             Some(c) => c,
             None    => return None
@@ -401,6 +406,8 @@ impl Model {
     //                    |_|    
 
     pub fn stop(&mut self) -> Option<()> {
+        self.queue.is_paused = true;
+        self.queue.elapsed = 0.;
         let current = match &self.queue.current {
             Some(c) => c,
             None    => return None
@@ -431,15 +438,14 @@ impl Model {
 
         if !self.motions.contains_key(new) {return None;}
 
-        let current = new.to_string();
-        let motion_data = &mut self.motions.get_mut(&current)?;
+        let motion_data = &mut self.motions.get_mut(new)?;
 
         motion_data.motion.set_looped(motion_data.looped);
-        motion_data.motion.play();
 
         self.queue.current = Some(new.to_string());
         self.queue.duration = motion_data.duration;
         self.queue.elapsed = 0.;
+        self.play();
         Some(())
     }
 
@@ -470,10 +476,7 @@ impl Model {
     fn next(&mut self) -> Option<()> {
         self.queue.lineup
         .pop_front()
-        .map(|c| {
-            self.set_motion(c.as_str());
-            self.queue.elapsed = 0.;
-        })
+        .and_then(|c| self.set_motion(c.as_str()))
     }
 }
 
