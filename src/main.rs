@@ -1,6 +1,6 @@
 use std::{
+    time::Instant,
     cmp::{max, min},
-    time::{Instant, Duration},
 };
 use glium::{
     Display,
@@ -22,7 +22,6 @@ use framework::Model;
 
 const APP_NAME:   &'static str = "rusty-ships";
 const CONFIG:     &'static str = "config";
-const TARGET_FPS: u64          = 60;
 
 //   ____             __ _
 //  / ___|___  _ __  / _(_) __ _
@@ -147,67 +146,68 @@ fn main() -> Result<(), String> {
     //  _ _  | |  | |_| | | | |
     // (_|_) |_|   \__,_|_| |_|
 
-    let inc = 1000 / TARGET_FPS;
     let mut last_frame = Instant::now();
-    let mut limiter = Instant::now();
 
     event_loop.run(move |event,
                          _,
                          control_flow| {
-        let elapsed =
-            last_frame
-            .elapsed()
-            .as_secs_f64();
-        last_frame = Instant::now();
-
-        model
-        .update(elapsed)
-        .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
-
-        let aspect = {
-            let (w, h) = display.get_framebuffer_dimensions();
-            let r = max(w, h) as f32 / min(w, h) as f32;
-            match config.window.fit {
-                FitConfig::Contain => if w > h {[1./r, 1.]} else {[1., 1./r]}
-                FitConfig::Cover   => if w > h {[1., r]} else {[r, 1.]}
-            }
-        };
-
-        //      _                          _             _   
-        //   __| |_ __ __ ___      __  ___| |_ __ _ _ __| |_ 
-        //  / _` | '__/ _` \ \ /\ / / / __| __/ _` | '__| __|
-        // | (_| | | | (_| |\ V  V /  \__ \ || (_| | |  | |_ 
-        //  \__,_|_|  \__,_| \_/\_/   |___/\__\__,_|_|   \__|
-
-        let mut frame = display.draw();
-        frame.clear_color(0.,
-                          0.,
-                          0.,
-                          0.);
-
-        model
-        .draw(&mut frame,
-              &program,
-              aspect)
-        .unwrap_or_else(|e| eprintln!("Failed to draw model: {e}"));
-
-        frame
-        .finish()
-        .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
-
-        //      _                       __ _       _     _     
-        //   __| |_ __ __ ___      __  / _(_)_ __ (_)___| |__  
-        //  / _` | '__/ _` \ \ /\ / / | |_| | '_ \| / __| '_ \ 
-        // | (_| | | | (_| |\ V  V /  |  _| | | | | \__ \ | | |
-        //  \__,_|_|  \__,_| \_/\_/   |_| |_|_| |_|_|___/_| |_|
-
-        limiter += Duration::from_millis(inc);
-        control_flow.set_wait_until(limiter);
-
         match event {
             Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
                 _ => {}
+            }
+            Event::MainEventsCleared => {
+                let elapsed =
+                    last_frame
+                    .elapsed()
+                    .as_secs_f64();
+                last_frame = Instant::now();
+
+                model
+                .update(elapsed)
+                .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
+
+                let aspect = {
+                    let (w, h) = display.get_framebuffer_dimensions();
+                    let r = max(w, h) as f32 / min(w, h) as f32;
+                    let (x, y) = match config.window.fit {
+                        FitConfig::Contain => (1./r, 1.),
+                        FitConfig::Cover   => (1.,    r),
+                    };
+                    if w > h {[x, y]} else {[y, x]}
+                };
+
+                //      _                          _             _   
+                //   __| |_ __ __ ___      __  ___| |_ __ _ _ __| |_ 
+                //  / _` | '__/ _` \ \ /\ / / / __| __/ _` | '__| __|
+                // | (_| | | | (_| |\ V  V /  \__ \ || (_| | |  | |_ 
+                //  \__,_|_|  \__,_| \_/\_/   |___/\__\__,_|_|   \__|
+
+                let mut frame = display.draw();
+                frame.clear_color(0.,
+                                  0.,
+                                  0.,
+                                  0.);
+
+                model
+                .draw(&mut frame,
+                      &program,
+                      aspect)
+                .unwrap_or_else(|e| eprintln!("Failed to draw model: {e}"));
+
+                frame
+                .finish()
+                .unwrap_or_else(|e| eprintln!("Failed to create frame: {e}"));
+
+                //      _                       __ _       _     _     
+                //   __| |_ __ __ ___      __  / _(_)_ __ (_)___| |__  
+                //  / _` | '__/ _` \ \ /\ / / | |_| | '_ \| / __| '_ \ 
+                // | (_| | | | (_| |\ V  V /  |  _| | | | | \__ \ | | |
+                //  \__,_|_|  \__,_| \_/\_/   |_| |_|_| |_|_|___/_| |_|
+
+            }
+            Event::RedrawEventsCleared => {
+                control_flow.set_poll();
             }
             _ => {}
         }
