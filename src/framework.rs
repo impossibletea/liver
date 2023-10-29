@@ -90,6 +90,24 @@ impl Model {
 
     pub fn new(config:  &Config,
                display: &Display) -> Result<Self, String> {
+        let mut model = Self::init(config,
+                                   display)?;
+
+        if let Some(q) = &config.model.motions {
+            q.iter().for_each(|m| model.queue(m).unwrap_or(()));
+        }
+
+        Ok(model)
+    }
+
+    //        _       _ _   
+    //  _ _  (_)_ __ (_) |_ 
+    // (_|_) | | '_ \| | __|
+    //  _ _  | | | | | | |_ 
+    // (_|_) |_|_| |_|_|\__|
+
+    fn init(config:  &Config,
+            display: &Display) -> Result<Self, String> {
 
         //    _ __   __ _ _ __ ___   ___
         //   | '_ \ / _` | '_ ` _ \ / _ \
@@ -327,7 +345,7 @@ impl Model {
 
         if queue.elapsed >= queue.duration {
             self.next()
-            .or(self.set_motion("idle"))
+            .or_else(|| self.set_motion("idle"))
             .ok_or(format!("Queue fucked up"))?;
         }
 
@@ -446,6 +464,7 @@ impl Model {
         self.queue.duration = motion_data.duration;
         self.queue.elapsed = 0.;
         self.play();
+        eprintln!("Set motion {new}");
         Some(())
     }
 
@@ -464,6 +483,7 @@ impl Model {
         } else {
             self.set_motion(new);
         }
+        eprintln!("Queued motion {new}");
         Some(())
     }
 

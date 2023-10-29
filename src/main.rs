@@ -30,8 +30,9 @@ pub struct WindowConfig {
 
 #[derive(Serialize, Deserialize)]
 pub struct ModelConfig {
-    pub name: Option<String>,
-    pub path: String,
+    pub name:    Option<String>,
+    pub path:    String,
+    pub motions: Option<Vec<String>>,
 }
 
 impl std::default::Default for Config {
@@ -42,8 +43,9 @@ impl std::default::Default for Config {
                 title: "Rusty Ships".to_string(),
             },
             model: ModelConfig {
-                name: None,
-                path: "assets".to_string(),
+                name:    None,
+                path:    "assets".to_string(),
+                motions: None,
             },
         }
     }
@@ -126,8 +128,6 @@ fn main() -> Result<(), String> {
 
     let mut model = Model::new(&config,
                                &display)?;
-    model.queue("login");
-    model.queue("idle");
 
     //  _ _   _ __ _   _ _ __
     // (_|_) | '__| | | | '_ \
