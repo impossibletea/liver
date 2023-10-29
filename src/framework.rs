@@ -81,6 +81,26 @@ struct CanvasInfo {
     scale:  f32,
 }
 
+//  ____                          _     _      
+// |  _ \ _ __ __ ___      ____ _| |__ | | ___ 
+// | | | | '__/ _` \ \ /\ / / _` | '_ \| |/ _ \
+// | |_| | | | (_| |\ V  V / (_| | |_) | |  __/
+// |____/|_|  \__,_| \_/\_/ \__,_|_.__/|_|\___|
+                                            
+struct Drawable {
+    vertex_buffer: VertexBuffer<Vert>,
+    index_buffer:  IndexBuffer<u16>,
+    opacity:       f32,
+    texture_index: i32,
+    render_order:  i32,
+}
+
+//  __  __           _      _       
+// |  \/  | ___   __| | ___| |  _ _ 
+// | |\/| |/ _ \ / _` |/ _ \ | (_|_)
+// | |  | | (_) | (_| |  __/ |  _ _ 
+// |_|  |_|\___/ \__,_|\___|_| (_|_)
+                                 
 impl Model {
 
     //  _ _   _ __   _____      __
@@ -263,10 +283,9 @@ impl Model {
         //  | (_| | | | (_| |\ V  V / (_| | |_) | |  __/\__ \
         // (_)__,_|_|  \__,_| \_/\_/ \__,_|_.__/|_|\___||___/
 
-        let mut drawables: Vec<_> =
+        let drawables: Vec<_> =
             Result::from_iter(model.drawables()
                               .map(|d| Drawable::new(d, display)))?;
-        drawables.sort_unstable_by_key(|d| d.render_order);
 
         //           _
         //  _ __ ___| |_ _   _ _ __ _ __
@@ -293,8 +312,10 @@ impl Model {
     pub fn draw<T: Surface>(&self,
                             frame:   &mut T,
                             program: &Program) -> Result<(), String> {
+        let drawables = self.sorted();
+
         Result::from(
-            self.drawables.iter()
+            drawables.iter()
             .map(|d| {
                 let uniforms = uniform!{
                     size:    self.canvas.size,
@@ -367,14 +388,9 @@ impl Model {
 
         self.model.model_mut().update();
 
-        let mut drawables: Vec<_> =
-            Result::from_iter(
-                self.model.drawables()
-                .map(|d| Drawable::new(d, display))
-            )?;
-        drawables.sort_unstable_by_key(|d| d.render_order);
-
-        self.drawables = drawables;
+        zip(&mut self.drawables,
+            self.model.drawables())
+        .for_each(|(d, s)| d.update(s));
 
         Ok(())
     }
@@ -498,22 +514,26 @@ impl Model {
         .pop_front()
         .and_then(|c| self.set_motion(c.as_str()))
     }
+
+    //                       _           _ 
+    //  _ _   ___  ___  _ __| |_ ___  __| |
+    // (_|_) / __|/ _ \| '__| __/ _ \/ _` |
+    //  _ _  \__ \ (_) | |  | ||  __/ (_| |
+    // (_|_) |___/\___/|_|   \__\___|\__,_|
+
+    fn sorted(&self) -> Vec<&Drawable> {
+        let mut result = Vec::from_iter(self.drawables.iter());
+        result.sort_unstable_by_key(|d| d.render_order);
+        result
+    }
 }
 
-//  ____                          _     _      
-// |  _ \ _ __ __ ___      ____ _| |__ | | ___ 
-// | | | | '__/ _` \ \ /\ / / _` | '_ \| |/ _ \
-// | |_| | | | (_| |\ V  V / (_| | |_) | |  __/
-// |____/|_|  \__,_| \_/\_/ \__,_|_.__/|_|\___|
-                                            
-struct Drawable {
-    vertex_buffer: VertexBuffer<Vert>,
-    index_buffer:  IndexBuffer<u16>,
-    opacity:       f32,
-    texture_index: i32,
-    render_order:  i32,
-}
-
+//  ____                          _     _            
+// |  _ \ _ __ __ ___      ____ _| |__ | | ___   _ _ 
+// | | | | '__/ _` \ \ /\ / / _` | '_ \| |/ _ \ (_|_)
+// | |_| | | | (_| |\ V  V / (_| | |_) | |  __/  _ _ 
+// |____/|_|  \__,_| \_/\_/ \__,_|_.__/|_|\___| (_|_)
+                                                  
 impl Drawable {
 
     //  _ _   _ __   _____      __
@@ -538,8 +558,8 @@ impl Drawable {
                 texture_uv: *uv,
             }).collect();
         let vertex_buffer =
-            VertexBuffer::new(display,
-                              &vertices)
+            VertexBuffer::dynamic(display,
+                                  &vertices)
             .map_err(|e| format!("Failed to create vertex buffer: {e}"))?;
 
         //    _           _             _            __  __
@@ -592,6 +612,20 @@ impl Drawable {
             texture_index,
             render_order,
         })
+    }
+
+    fn update(&mut self,
+              drawable: core::Drawable) {
+        let vertices: Vec<_> =
+            zip(drawable.vertex_positions,
+                drawable.vertex_uvs)
+            .map(|(pos, uv)| Vert{
+                position:   *pos,
+                texture_uv: *uv,
+            }).collect();
+        self.vertex_buffer.write(&vertices);
+        self.opacity = drawable.opacity;
+        self.render_order = drawable.render_order;
     }
 }
 
