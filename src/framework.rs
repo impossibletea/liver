@@ -28,6 +28,12 @@ use cubism::{
 };
 use crate::{Config, APP_NAME, CONFIG};
 
+const VISIBLE:          DynamicFlags = DynamicFlags::IS_VISIBLE;
+const VISIBLE_CHANGED:  DynamicFlags = DynamicFlags::VISIBILITY_CHANGED;
+const OPACITY_CHANGED:  DynamicFlags = DynamicFlags::OPACITY_CHANGED;
+const ORDER_CHANGED:    DynamicFlags = DynamicFlags::RENDER_ORDER_CHANGED;
+const VERTICES_CHANGED: DynamicFlags = DynamicFlags::VERTEX_POSITIONS_CHANGED;
+
 //  __  __           _      _
 // |  \/  | ___   __| | ___| |
 // | |\/| |/ _ \ / _` |/ _ \ |
@@ -93,7 +99,7 @@ struct Drawable {
     visible:       bool,
     opacity:       f32,
     texture_index: i32,
-    render_order:  i32,
+    order:         i32,
 }
 
 //  __  __           _      _
@@ -314,7 +320,7 @@ impl Model {
                             frame:   &mut T,
                             program: &Program,
                             aspect:  [f32; 2]) -> Result<(), String> {
-        let drawables = self.sorted();
+        let drawables = self.ordered();
 
         Result::from(
             drawables.iter()
@@ -524,9 +530,9 @@ impl Model {
     //  _ _  \__ \ (_) | |  | ||  __/ (_| |
     // (_|_) |___/\___/|_|   \__\___|\__,_|
 
-    fn sorted(&self) -> Vec<&Drawable> {
+    fn ordered(&self) -> Vec<&Drawable> {
         let mut result = Vec::from_iter(self.drawables.iter());
-        result.sort_unstable_by_key(|d| d.render_order);
+        result.sort_unstable_by_key(|d| d.order);
         result
     }
 }
@@ -546,6 +552,7 @@ impl Drawable {
 
     fn new(drawable: core::Drawable,
            display:  &Display) -> Result<Self, String> {
+        let dynamic_flags = drawable.dynamic_flags;
 
         //                 _              _            __  __
         // __   _____ _ __| |_ _____  __ | |__  _   _ / _|/ _| ___ _ __
@@ -583,8 +590,7 @@ impl Drawable {
         //  \ V /| \__ \ | |_) | |  __/
         // (_)_/ |_|___/_|_.__/|_|\___|
 
-        let dynamic_flags = drawable.dynamic_flags;
-        let visible = dynamic_flags.contains(DynamicFlags::IS_VISIBLE);
+        let visible = dynamic_flags.contains(VISIBLE);
 
         //                          _ _
         //    ___  _ __   __ _  ___(_) |_ _   _
@@ -609,7 +615,7 @@ impl Drawable {
         //  _| | |  __/ | | | (_| |  __/ |    | (_) | | | (_| |  __/ |
         // (_)_|  \___|_| |_|\__,_|\___|_|     \___/|_|  \__,_|\___|_|
 
-        let render_order = drawable.render_order;
+        let order = drawable.render_order;
 
         //           _
         //  _ __ ___| |_ _   _ _ __ _ __
@@ -623,7 +629,7 @@ impl Drawable {
             visible,
             opacity,
             texture_index,
-            render_order,
+            order,
         })
     }
 
@@ -638,7 +644,7 @@ impl Drawable {
               drawable: core::Drawable) {
         let flags = drawable.dynamic_flags;
 
-        if flags.contains(DynamicFlags::VERTEX_POSITIONS_CHANGED) {
+        if flags.contains(VERTICES_CHANGED) {
             let vertices: Vec<_> =
                 zip(drawable.vertex_positions,
                     drawable.vertex_uvs)
@@ -649,16 +655,16 @@ impl Drawable {
             self.vertex_buffer.write(&vertices);
         }
 
-        if flags.contains(DynamicFlags::OPACITY_CHANGED) {
+        if flags.contains(OPACITY_CHANGED) {
             self.opacity = drawable.opacity;
         }
 
-        if flags.contains(DynamicFlags::RENDER_ORDER_CHANGED) {
-            self.render_order = drawable.render_order;
+        if flags.contains(ORDER_CHANGED) {
+            self.order = drawable.render_order;
         }
 
-        if flags.contains(DynamicFlags::OPACITY_CHANGED) {
-            self.visible = flags.contains(DynamicFlags::IS_VISIBLE);
+        if flags.contains(VISIBLE_CHANGED) {
+            self.visible = flags.contains(VISIBLE);
         }
     }
 }
