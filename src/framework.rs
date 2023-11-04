@@ -28,6 +28,10 @@ use cubism::{
 };
 use crate::{Config, APP_NAME, CONFIG};
 
+const BLEND_ADD:    ConstantFlags = ConstantFlags::BLEND_ADDITIVE;
+const BLEND_MULT:   ConstantFlags = ConstantFlags::BLEND_MULTIPLICATIVE;
+const MASK_INV:     ConstantFlags = ConstantFlags::IS_INVERTED_MASK;
+
 const VISIBLE:          DynamicFlags = DynamicFlags::IS_VISIBLE;
 const VISIBLE_CHANGED:  DynamicFlags = DynamicFlags::VISIBILITY_CHANGED;
 const OPACITY_CHANGED:  DynamicFlags = DynamicFlags::OPACITY_CHANGED;
@@ -98,6 +102,7 @@ struct Drawable {
     index_buffer:  IndexBuffer<u16>,
     visible:       bool,
     opacity:       f32,
+    blend:         Blend,
     texture_index: i32,
     order:         i32,
 }
@@ -336,17 +341,7 @@ impl Model {
                 };
 
                 let params = &DrawParameters {
-                    blend: Blend {
-                        color: BlendingFunction::Addition {
-                            source: F::SourceAlpha,
-                            destination: F::OneMinusSourceAlpha,
-                        },
-                        alpha: BlendingFunction::Addition {
-                            source: F::One,
-                            destination: F::OneMinusSourceAlpha,
-                        },
-                        .. Default::default()
-                    },
+                    blend: d.blend,
                     .. Default::default()
                 };
 
@@ -552,6 +547,7 @@ impl Drawable {
 
     fn new(drawable: core::Drawable,
            display:  &Display) -> Result<Self, String> {
+        let constant_flags = drawable.constant_flags;
         let dynamic_flags = drawable.dynamic_flags;
 
         //                 _              _            __  __
@@ -601,6 +597,51 @@ impl Drawable {
 
         let opacity = drawable.opacity;
 
+        //    _     _                _
+        //   | |__ | | ___ _ __   __| |
+        //   | '_ \| |/ _ \ '_ \ / _` |
+        //  _| |_) | |  __/ | | | (_| |
+        // (_)_.__/|_|\___|_| |_|\__,_|
+
+        let blend = if constant_flags.contains(BLEND_ADD) {
+            Blend {
+                color: BlendingFunction::Addition {
+                    source:      F::SourceAlpha,
+                    destination: F::One,
+                },
+                alpha: BlendingFunction::Addition {
+                    source:      F::One,
+                    destination: F::One,
+                },
+                constant_value: (0., 0., 0., 1.),
+            }
+        } else if constant_flags.contains(BLEND_MULT) {
+            // TODO! implement proper multiplicative blending
+            Blend {
+                color: BlendingFunction::Addition {
+                    source:      F::Zero,
+                    destination: F::One,
+                },
+                alpha: BlendingFunction::Addition {
+                    source:      F::Zero,
+                    destination: F::One,
+                },
+                constant_value: (1., 1., 1., 1.),
+            }
+        } else {
+            Blend {
+                color: BlendingFunction::Addition {
+                    source:      F::SourceAlpha,
+                    destination: F::OneMinusSourceAlpha,
+                },
+                alpha: BlendingFunction::Addition {
+                    source:      F::One,
+                    destination: F::OneMinusSourceAlpha,
+                },
+                .. Default::default()
+            }
+        };
+
         //   _            _                    _           _
         //  | |_ _____  _| |_ _   _ _ __ ___  (_)_ __   __| | _____  __
         //  | __/ _ \ \/ / __| | | | '__/ _ \ | | '_ \ / _` |/ _ \ \/ /
@@ -628,6 +669,7 @@ impl Drawable {
             index_buffer,
             visible,
             opacity,
+            blend,
             texture_index,
             order,
         })
