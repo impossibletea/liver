@@ -18,9 +18,9 @@ use glium::{
     texture::{SrgbTexture2d, RawImage2d},
 };
 use cubism::{
-    core,
     motion::Motion,
     model::UserModel,
+    core::{self, ConstantFlags, DynamicFlags},
     json::{
         model::Model3,
         motion::Motion3,
@@ -90,6 +90,7 @@ struct CanvasInfo {
 struct Drawable {
     vertex_buffer: VertexBuffer<Vert>,
     index_buffer:  IndexBuffer<u16>,
+    visible:       bool,
     opacity:       f32,
     texture_index: i32,
     render_order:  i32,
@@ -317,6 +318,7 @@ impl Model {
 
         Result::from(
             drawables.iter()
+            .filter(|d| d.visible)
             .map(|d| {
                 let uniforms = uniform!{
                     size:    self.canvas.size,
@@ -575,6 +577,15 @@ impl Drawable {
                              drawable.indices)
             .map_err(|e| format!("Failed to create index buffer: {e}"))?;
 
+        //        _     _ _     _
+        // __   _(_)___(_) |__ | | ___
+        // \ \ / / / __| | '_ \| |/ _ \
+        //  \ V /| \__ \ | |_) | |  __/
+        // (_)_/ |_|___/_|_.__/|_|\___|
+
+        let dynamic_flags = drawable.dynamic_flags;
+        let visible = dynamic_flags.contains(DynamicFlags::IS_VISIBLE);
+
         //                          _ _
         //    ___  _ __   __ _  ___(_) |_ _   _
         //   / _ \| '_ \ / _` |/ __| | __| | | |
@@ -609,24 +620,46 @@ impl Drawable {
         Ok(Drawable {
             vertex_buffer,
             index_buffer,
+            visible,
             opacity,
             texture_index,
             render_order,
         })
     }
 
+    //                        _       _
+    //  _ _   _   _ _ __   __| | __ _| |_ ___
+    // (_|_) | | | | '_ \ / _` |/ _` | __/ _ \
+    //  _ _  | |_| | |_) | (_| | (_| | ||  __/
+    // (_|_)  \__,_| .__/ \__,_|\__,_|\__\___|
+    //             |_|
+
     fn update(&mut self,
               drawable: core::Drawable) {
-        let vertices: Vec<_> =
-            zip(drawable.vertex_positions,
-                drawable.vertex_uvs)
-            .map(|(pos, uv)| Vert{
-                position:   *pos,
-                texture_uv: *uv,
-            }).collect();
-        self.vertex_buffer.write(&vertices);
-        self.opacity = drawable.opacity;
-        self.render_order = drawable.render_order;
+        let flags = drawable.dynamic_flags;
+
+        if flags.contains(DynamicFlags::VERTEX_POSITIONS_CHANGED) {
+            let vertices: Vec<_> =
+                zip(drawable.vertex_positions,
+                    drawable.vertex_uvs)
+                .map(|(pos, uv)| Vert{
+                    position:   *pos,
+                    texture_uv: *uv,
+                }).collect();
+            self.vertex_buffer.write(&vertices);
+        }
+
+        if flags.contains(DynamicFlags::OPACITY_CHANGED) {
+            self.opacity = drawable.opacity;
+        }
+
+        if flags.contains(DynamicFlags::RENDER_ORDER_CHANGED) {
+            self.render_order = drawable.render_order;
+        }
+
+        if flags.contains(DynamicFlags::OPACITY_CHANGED) {
+            self.visible = flags.contains(DynamicFlags::IS_VISIBLE);
+        }
     }
 }
 
