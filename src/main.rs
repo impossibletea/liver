@@ -171,7 +171,7 @@ fn main() -> Result<(), String> {
         match event {
             Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
-                WindowEvent::Resized(s)     => {
+                WindowEvent::Resized(s) => {
                     aspect = {
                         let (w, h) = (s.width, s.height);
                         let r = max(w, h) as f32 / min(w, h) as f32;
