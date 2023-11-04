@@ -30,7 +30,7 @@ use crate::{Config, APP_NAME, CONFIG};
 
 const BLEND_ADD:    ConstantFlags = ConstantFlags::BLEND_ADDITIVE;
 const BLEND_MULT:   ConstantFlags = ConstantFlags::BLEND_MULTIPLICATIVE;
-const MASK_INV:     ConstantFlags = ConstantFlags::IS_INVERTED_MASK;
+//const MASK_INV:     ConstantFlags = ConstantFlags::IS_INVERTED_MASK;
 
 const VISIBLE:          DynamicFlags = DynamicFlags::IS_VISIBLE;
 const VISIBLE_CHANGED:  DynamicFlags = DynamicFlags::VISIBILITY_CHANGED;
@@ -237,6 +237,7 @@ impl Model {
                 motion,
             };
 
+            eprintln!("Added motion {n}");
             motions.insert(n, m);
         }
 
