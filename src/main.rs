@@ -11,7 +11,6 @@ use glium::{
         event_loop::EventLoop,
         window::WindowBuilder,
         event::{Event, WindowEvent},
-        platform::unix::{WindowBuilderExtUnix, XWindowType},
     },
     program::Program,
 };
@@ -104,16 +103,16 @@ fn main() -> Result<(), String> {
     let event_loop = EventLoop::new();
     let display = {
         let title = config.window.title.clone();
-        let window_type = vec![XWindowType::Normal];
 
         Display::new(WindowBuilder::new()
                      .with_inner_size(LogicalSize::new(width,
                                                        height))
                      .with_title(title)
                      .with_decorations(false)
-                     .with_transparent(true)
-                     .with_x11_window_type(window_type),
-                     ContextBuilder::new(),
+                     .with_transparent(true),
+                     ContextBuilder::new()
+                     .with_vsync(true)
+                     .with_double_buffer(Some(true)),
                      &event_loop)
         .map_err(|e| format!("Failed to create display: {e}"))
     }?;
