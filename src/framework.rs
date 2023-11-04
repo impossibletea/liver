@@ -129,6 +129,10 @@ impl Model {
             q.iter().for_each(|m| model.queue(m).unwrap_or(()));
         }
 
+        if let Some(effect) = model.motions.get_mut("effect") {
+            effect.motion.play();
+        }
+
         Ok(model)
     }
 
@@ -365,13 +369,13 @@ impl Model {
     pub fn update(&mut self,
                   dt: f64) -> Result<(), String> {
         let queue = &mut self.queue;
-        if queue.is_paused {return Ok(());}
+        if queue.is_paused {return Ok(())}
         queue.elapsed += dt as f32;
 
         if queue.elapsed >= queue.duration {
             self.next()
             .or_else(|| self.set_motion("idle"))
-            .ok_or(format!("Queue fucked up"))?;
+            .unwrap_or(());
         }
 
         let current = match &self.queue.current {
@@ -389,6 +393,14 @@ impl Model {
         motion
         .update(self.model.model_mut())
         .map_err(|e| format!("Failed to update model: {e}"))?;
+
+        if let Some(effect_data) = &mut self.motions.get_mut("effect") {
+            let effect = &mut effect_data.motion;
+            effect.tick(dt);
+            effect
+            .update(self.model.model_mut())
+            .map_err(|e| format!("Failed to update model: {e}"))?;
+        }
 
         self.model.model_mut().update();
 
@@ -473,8 +485,6 @@ impl Model {
     fn set_motion(&mut self,
                   new: &str) -> Option<()> {
         self.stop().unwrap_or(());
-
-        if !self.motions.contains_key(new) {return None;}
 
         let motion_data = &mut self.motions.get_mut(new)?;
 
