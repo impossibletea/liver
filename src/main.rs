@@ -43,16 +43,22 @@ pub struct WindowConfig {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ModelConfig {
-    pub name:    Option<String>,
-    pub path:    String,
-    pub motions: Option<Vec<String>>,
-}
-
-#[derive(Serialize, Deserialize)]
 pub enum FitConfig {
     Contain,
     Cover,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ModelConfig {
+    pub name:    Option<String>,
+    pub path:    String,
+    pub motions: MotionConfig,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MotionConfig {
+    pub open: Option<Vec<String>>,
+    pub idle: Option<String>,
 }
 
 impl std::default::Default for Config {
@@ -66,7 +72,10 @@ impl std::default::Default for Config {
             model: ModelConfig {
                 name:    None,
                 path:    "assets".to_string(),
-                motions: None,
+                motions: MotionConfig {
+                    open: None,
+                    idle: None,
+                },
             },
         }
     }

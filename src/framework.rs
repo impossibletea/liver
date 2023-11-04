@@ -77,6 +77,7 @@ struct Queue {
     duration:  f32,
     elapsed:   f32,
     is_paused: bool,
+    idle:      String,
 }
 
 //   ____                          ___        __
@@ -125,7 +126,7 @@ impl Model {
         let mut model = Self::init(config,
                                    display)?;
 
-        if let Some(q) = &config.model.motions {
+        if let Some(q) = &config.model.motions.open {
             q.iter().for_each(|m| model.queue(m).unwrap_or(()));
         }
 
@@ -245,12 +246,18 @@ impl Model {
         // (_)__, |\__,_|\___|\__,_|\___|
         //      |_|
 
+        let idle = match config.model.motions.idle.clone() {
+            Some(m) => m,
+            None    => "idle".to_string()
+        };
+
         let queue = Queue {
             lineup:    VecDeque::new(),
             current:   None,
             duration:  0.,
             elapsed:   0.,
             is_paused: false,
+            idle,
         };
 
         //    ___ __ _ _ ____   ____ _ ___
@@ -372,11 +379,7 @@ impl Model {
         if queue.is_paused {return Ok(())}
         queue.elapsed += dt as f32;
 
-        if queue.elapsed >= queue.duration {
-            self.next()
-            .or_else(|| self.set_motion("idle"))
-            .unwrap_or(());
-        }
+        if queue.elapsed >= queue.duration {self.next();}
 
         let current = match &self.queue.current {
             Some(c) => c,
@@ -484,8 +487,6 @@ impl Model {
 
     fn set_motion(&mut self,
                   new: &str) -> Option<()> {
-        self.stop().unwrap_or(());
-
         let motion_data = &mut self.motions.get_mut(new)?;
 
         motion_data.motion.set_looped(motion_data.looped);
@@ -493,7 +494,7 @@ impl Model {
         self.queue.current = Some(new.to_string());
         self.queue.duration = motion_data.duration;
         self.queue.elapsed = 0.;
-        self.play();
+        self.restart();
         eprintln!("Set motion {new}");
         Some(())
     }
@@ -510,10 +511,10 @@ impl Model {
 
         if self.queue.current.is_some() {
             self.queue.lineup.push_back(new.to_string());
+            eprintln!("Queued motion {new}");
         } else {
             self.set_motion(new);
         }
-        eprintln!("Queued motion {new}");
         Some(())
     }
 
@@ -524,9 +525,12 @@ impl Model {
     // (_|_) |_| |_|\___/_/\_\\__|
 
     fn next(&mut self) -> Option<()> {
-        self.queue.lineup
-        .pop_front()
-        .and_then(|c| self.set_motion(c.as_str()))
+        let next = match self.queue.lineup.pop_front() {
+            Some(m) => m,
+            None    => self.queue.idle.clone()
+        };
+
+        self.set_motion(next.as_str())
     }
 
     //                       _           _
