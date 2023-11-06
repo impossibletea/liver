@@ -1,6 +1,12 @@
 use std::{
+    fs,
+    thread,
+    io::Read,
+    path::Path,
     time::Instant,
     cmp::{max, min},
+    os::unix::net::UnixListener,
+    sync::mpsc::{self, Receiver},
 };
 use glium::{
     Display,
@@ -15,6 +21,9 @@ use glium::{
     program::Program,
 };
 use serde::{Serialize, Deserialize};
+
+mod message;
+use message::{Message, SOCKET_ADDR};
 
 mod framework;
 use framework::Model;
@@ -88,6 +97,52 @@ impl std::default::Default for Config {
 // |_| |_| |_|\__,_|_|_| |_|
 
 fn main() -> Result<(), String> {
+
+    //                      _
+    //    _ __ ___  ___ ___(_)_   _____ _ __
+    //   | '__/ _ \/ __/ _ \ \ \ / / _ \ '__|
+    //  _| | |  __/ (_|  __/ |\ V /  __/ |
+    // (_)_|  \___|\___\___|_| \_/ \___|_|
+
+    let receiver: Receiver<Message> = {
+        let path = Path::new(SOCKET_ADDR);
+
+        if path.exists() {
+            eprintln!("Removing existing socket before connecting");
+            match fs::remove_file(path) {
+                Ok(r)  => r,
+                Err(e) => eprintln!("Unable to remove existing socket: {e}")
+            }
+        }
+
+        let listener =
+            UnixListener::bind(path)
+            .map_err(|e| format!("Failed to listen to the socket: {e}"))?;
+
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            for stream in listener.incoming() {
+                match stream {
+                    Ok(mut s)  => {
+                        let mut input = String::new();
+                        s.read_to_string(&mut input)
+                        .unwrap_or(0);
+
+                        match Message::parse(input) {
+                            Some(m) => tx.send(m).unwrap_or(()),
+                            None    => {}
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Socket connection error: {e}");
+                        continue
+                    }
+                }
+            }
+        });
+
+        rx
+    };
 
     //                    __ _
     //    ___ ___  _ __  / _(_) __ _
@@ -169,6 +224,27 @@ fn main() -> Result<(), String> {
                          _,
                          control_flow| {
         match event {
+            Event::NewEvents(_) => {
+                if let Ok(msg) = receiver.try_recv() {
+                    match msg {
+                        Message::SetMotion(m) => model.queue(m.as_str()),
+                        Message::Toggle       => model.toggle(),
+                        Message::Pause        => model.pause(),
+                        Message::Play         => model.play(),
+                        Message::Exit         => Some(control_flow.set_exit()),
+                    }.unwrap_or(())
+                }
+
+                let elapsed =
+                    last_frame
+                    .elapsed()
+                    .as_secs_f64();
+                last_frame = Instant::now();
+
+                model
+                .update(elapsed)
+                .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
+            }
             Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
                 WindowEvent::Resized(s) => {
@@ -185,15 +261,6 @@ fn main() -> Result<(), String> {
                 _ => {}
             }
             Event::MainEventsCleared => {
-                let elapsed =
-                    last_frame
-                    .elapsed()
-                    .as_secs_f64();
-                last_frame = Instant::now();
-
-                model
-                .update(elapsed)
-                .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
 
                 //      _                          _             _
                 //   __| |_ __ __ ___      __  ___| |_ __ _ _ __| |_
@@ -224,9 +291,8 @@ fn main() -> Result<(), String> {
                 //  \__,_|_|  \__,_| \_/\_/   |_| |_|_| |_|_|___/_| |_|
 
             }
-            Event::RedrawEventsCleared => {
-                control_flow.set_poll();
-            }
+            Event::RedrawEventsCleared => control_flow.set_poll(),
+            Event::LoopDestroyed => eprintln!("Good bye!"),
             _ => {}
         }
     });

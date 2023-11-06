@@ -1,9 +1,20 @@
 [package]
 name = "rusty-ships"
 version = "0.1.0"
+authors = ["impossibleTea <impossibletea@icloud.com>"]
 edition = "2021"
+description = "Live2D model viewer with support for animation"
+repository = "https://github.com/impossibletea/rusty-ships"
+license = "MIT"
+default-run = "rusty-ships"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "rusty-ships"
+path = "src/main.rs"
+
+[[bin]]
+name = "rusty-ships-ctl"
+path = "src/ctl.rs"
 
 [dependencies]
 cubism = { path = "res/cubism-rs" }
