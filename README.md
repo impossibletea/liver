@@ -16,6 +16,23 @@ Made possible with incredible wrapper[^cubism-rs] for Cubism SDK.
 >   wrapper did not parse them in `motion_references`
 > * Restricted Beziers in `motion3.json` files
 
+## Building
+
+First refer to `cubism-rs` [documentation](res/cubism-rs/README.md) to place
+Live2DCubismCore library appropriately. I added a helper [file](.cargo/config)
+to not provide environment variable every time you wish to run `cargo
+<action>` command.
+
+After that it is just as usual for rust projects:
+
+```bash
+cargo install --path .
+rusty-ships
+ed ~/.config/rusty-ships/config.toml
+rusty-ships
+# Window should appear
+```
+
 ## Configuration
 
 Place your Live2D models and a `config.toml` in `~/.config/rusty-ships/` (or
@@ -73,22 +90,17 @@ particular model to use inside that directory.
 Configuration of motions that will be played at the program start (`open`, can
 be an array) and a motion fallback (`idle`) when motion queue is empty.
 
-## Building
+## Usage
 
-First refer to `cubism-rs` [documentation](res/cubism-rs/README.md) to place
-Live2DCubismCore library appropriately. I added a helper [file](.cargo/config)
-to not provide environment variable every time you wish to run `cargo
-<action>` command.
+Launch the app with `rusty-ships`. That's it, it does not accept command line
+argumets because I did not want it to. Window with your model should open,
+unless you forgot to set it in configuration.
 
-After that it is just as usual for rust projects:
-
-```bash
-cargo install --path .
-rusty-ships
-ed ~/.config/rusty-ships/config.toml
-rusty-ships
-# Window should appear
-```
+Playback can be controlled via `rusty-ships-ctl`. The following argumets are
+accepted:
+* `set <motion>`: Queues the motion with that name, if available
+* `pause`, `play`, `toggle`: self-explanatory
+* `exit`: tells the program that you want to quit
 
 [^live2d]: <https://www.live2d.com/en/>
 [^alviewer]: <https://l2d.algwiki.moe/>
