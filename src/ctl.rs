@@ -18,7 +18,7 @@ fn main() -> Result<(), String> {
     match args.next() {
         Some(arg) => match arg.as_str() {
             "toggle" => write!(&mut stream, "{}", Message::Toggle)
-                       .map_err(|e| format!("Failed to send message: {e}")),
+                        .map_err(|e| format!("Failed to send message: {e}")),
             "pause"  => write!(&mut stream, "{}", Message::Pause)
                         .map_err(|e| format!("Failed to send message: {e}")),
             "play"   => write!(&mut stream, "{}", Message::Play)
@@ -33,9 +33,13 @@ fn main() -> Result<(), String> {
                 write!(&mut stream, "{}", Message::SetMotion(motion))
                 .map_err(|e| format!("Failed to send message: {e}"))
             },
-            _        => Err(format!("Command {} is not recognised", arg))
+            "help"   => {println!("{}", message::USAGE); Ok(())}
+            _        => Err(format!("Command `{}` is not recognised", arg))
         }
-        None => Err(format!("No command provided"))
+        None => {
+            eprintln!("{}", message::USAGE);
+            Err(format!("No command provided"))
+        }
     }
 }
 

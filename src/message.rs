@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::fmt::{
     Error,
     Display,
@@ -5,6 +6,16 @@ use std::fmt::{
 };
 
 pub const SOCKET_ADDR: &'static str = "/run/user/1000/rusty-ships.sock";
+pub const USAGE:       &'static str =
+"
+Usage:
+    set <motion>    queue <motion>
+    play            resume animation
+    pause           pause animation
+    toggle          toggle animation
+    exit            exit the application
+    help            print this info and quit
+";
 
 //  __  __
 // |  \/  | ___  ___ ___  __ _  __ _  ___
@@ -29,7 +40,6 @@ pub enum Message {
 //                             |___/
 
 impl Message {
-    #[allow(dead_code)]
     pub fn parse(input: String) -> Option<Self> {
         let mut message = input.split(':');
 
