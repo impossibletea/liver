@@ -6,7 +6,6 @@ use std::{
     time::Instant,
     cmp::{max, min},
     os::unix::net::UnixListener,
-    sync::mpsc::{self, Receiver},
 };
 use glium::{
     Display,
@@ -14,9 +13,9 @@ use glium::{
     glutin::{
         ContextBuilder,
         dpi::LogicalSize,
-        event_loop::EventLoop,
         window::WindowBuilder,
         event::{Event, WindowEvent},
+        event_loop::EventLoopBuilder,
     },
     program::Program,
 };
@@ -38,52 +37,6 @@ use framework::Model;
 
 fn main() -> Result<(), String> {
 
-    //                      _
-    //    _ __ ___  ___ ___(_)_   _____ _ __
-    //   | '__/ _ \/ __/ _ \ \ \ / / _ \ '__|
-    //  _| | |  __/ (_|  __/ |\ V /  __/ |
-    // (_)_|  \___|\___\___|_| \_/ \___|_|
-
-    let receiver: Receiver<Message> = {
-        let path = Path::new(SOCKET_ADDR);
-
-        if path.exists() {
-            eprintln!("Removing existing socket before connecting");
-            match fs::remove_file(path) {
-                Ok(r)  => r,
-                Err(e) => eprintln!("Unable to remove existing socket: {e}")
-            }
-        }
-
-        let listener =
-            UnixListener::bind(path)
-            .map_err(|e| format!("Failed to listen to the socket: {e}"))?;
-
-        let (tx, rx) = mpsc::channel();
-        thread::spawn(move || {
-            for stream in listener.incoming() {
-                match stream {
-                    Ok(mut s)  => {
-                        let mut input = String::new();
-                        s.read_to_string(&mut input)
-                        .unwrap_or(0);
-
-                        match Message::parse(input) {
-                            Some(m) => tx.send(m).unwrap_or(()),
-                            None    => {}
-                        }
-                    },
-                    Err(e) => {
-                        eprintln!("Socket connection error: {e}");
-                        continue
-                    }
-                }
-            }
-        });
-
-        rx
-    };
-
     //                    __ _
     //    ___ ___  _ __  / _(_) __ _
     //   / __/ _ \| '_ \| |_| |/ _` |
@@ -96,6 +49,51 @@ fn main() -> Result<(), String> {
                     CONFIG)
         .map_err(|e| format!("Failed to load config: {e}"))?;
 
+    //                        _     _                   
+    //    _____   _____ _ __ | |_  | | ___   ___  _ __  
+    //   / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \ 
+    //  |  __/\ V /  __/ | | | |_  | | (_) | (_) | |_) |
+    // (_)___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/ 
+    //                                           |_|    
+
+    let event_loop =
+        EventLoopBuilder::<Message>::with_user_event()
+        .build();
+
+    let path = Path::new(SOCKET_ADDR);
+
+    if path.exists() {
+        eprintln!("Removing existing socket before connecting");
+        match fs::remove_file(path) {
+            Ok(r)  => r,
+            Err(e) => eprintln!("Unable to remove existing socket: {e}")
+        }
+    }
+
+    let listener =
+        UnixListener::bind(path)
+        .map_err(|e| format!("Failed to listen to the socket: {e}"))?;
+
+    let proxy = event_loop.create_proxy();
+
+    thread::spawn(move || {
+        listener.incoming()
+        .for_each(|stream| {
+            stream
+            .map_err(|e| format!("Socket connection error: {e}"))
+            .map(|mut s| {
+                let mut input = String::new();
+                s.read_to_string(&mut input).unwrap_or(0);
+                input
+            })
+            .and_then(|i| Message::parse(i)
+                          .ok_or(format!("Failed to parse message")))
+            .and_then(|m| proxy.send_event(m)
+                          .map_err(|e| format!("Failed to send message: {e}")))
+            .unwrap_or_else(|e| eprintln!("{e}"))
+        });
+    });
+
     //       _ _           _
     //    __| (_)___ _ __ | | __ _ _   _
     //   / _` | / __| '_ \| |/ _` | | | |
@@ -104,7 +102,6 @@ fn main() -> Result<(), String> {
     //              |_|            |___/
 
     let (width, height) = config.window.size.into();
-    let event_loop = EventLoop::new();
     let display = {
         let title = config.window.title.clone();
 
@@ -165,16 +162,6 @@ fn main() -> Result<(), String> {
                          control_flow| {
         match event {
             Event::NewEvents(_) => {
-                if let Ok(msg) = receiver.try_recv() {
-                    match msg {
-                        Message::SetMotion(m) => model.queue(m.as_str()),
-                        Message::Toggle       => model.toggle(),
-                        Message::Pause        => model.pause(),
-                        Message::Play         => model.play(),
-                        Message::Exit         => Some(control_flow.set_exit()),
-                    }.unwrap_or(())
-                }
-
                 let elapsed =
                     last_frame
                     .elapsed()
@@ -185,6 +172,13 @@ fn main() -> Result<(), String> {
                 .update(elapsed)
                 .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
             }
+            Event::UserEvent(msg) => match msg {
+                    Message::SetMotion(m) => model.queue(m.as_str()),
+                    Message::Toggle       => model.toggle(),
+                    Message::Pause        => model.pause(),
+                    Message::Play         => model.play(),
+                    Message::Exit         => Some(control_flow.set_exit()),
+                }.unwrap_or(()),
             Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
                 WindowEvent::Resized(s) => {
