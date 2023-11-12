@@ -2,18 +2,23 @@
 
 in vec2 position;
 in vec2 texture_uv;
-out vec2 frag_uv;
 
 uniform vec2 size;
 uniform vec2 origin;
 uniform float scale;
 uniform vec2 aspect;
 
+out vec2 frag_uv;
+
 void main() {
 	frag_uv = texture_uv;
-	vec2 pos = 1 + 2 * (scale * position - origin) / size;
-	//pos -= origin;
-	pos *= aspect;
+	vec2 pos = position;
+	pos *= scale;  // canvas scale
+	pos -= origin; // move to canvas origin
+	pos /= size;   // [0; s] -> [ 0; 1]
+	pos *= 2;      //        -> [ 0; 2]
+	pos += 1;      //        -> [-1; 1]
+	pos *= aspect; // preserve aspect ratio
 	gl_Position = vec4(pos, 0.0, 1.0);
 }
 
