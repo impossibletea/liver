@@ -26,7 +26,7 @@ use cubism::{
         motion::Motion3,
     },
 };
-use crate::{Config, APP_NAME, CONFIG};
+use crate::config::{Config, constant::*};
 
 const BLEND_ADD:    ConstantFlags = ConstantFlags::BLEND_ADDITIVE;
 const BLEND_MULT:   ConstantFlags = ConstantFlags::BLEND_MULTIPLICATIVE;
