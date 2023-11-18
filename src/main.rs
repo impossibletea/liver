@@ -173,7 +173,8 @@ fn main() -> Result<(), String> {
                 .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
             }
             Event::UserEvent(msg) => match msg {
-                    Message::SetMotion(m) => model.queue(m.as_str()),
+                    Message::SetMotion(m) => model.queue((m.0.as_str(),
+                                                          m.1.as_str())),
                     Message::Toggle       => model.toggle(),
                     Message::Pause        => model.pause(),
                     Message::Play         => model.play(),

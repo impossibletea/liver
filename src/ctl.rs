@@ -26,11 +26,18 @@ fn main() -> Result<(), String> {
             "exit"   => write!(&mut stream, "{}", Message::Exit)
                         .map_err(|e| format!("Failed to send message: {e}")),
             "set"    => {
-                let motion =
+                let first =
                     args.next()
                     .ok_or(format!("What motion to set?"))?;
 
-                write!(&mut stream, "{}", Message::SetMotion(motion))
+                let result = match args.next() {
+                    Some(second) => (first,
+                                     second),
+                    None         => ("".to_string(),
+                                     first)
+                };
+
+                write!(&mut stream, "{}", Message::SetMotion(result))
                 .map_err(|e| format!("Failed to send message: {e}"))
             },
             "help"   => {println!("{}", message::USAGE); Ok(())}

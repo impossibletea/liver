@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, collections::HashMap};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -65,24 +65,26 @@ pub enum GroupTarget {
 
 // TODO: Might very well be just a hashmap figure out whether these names should
 // be hardcoded or not
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct Motions {
-    #[serde(default)]
-    pub idle: Vec<Motion>,
-    #[serde(default, rename = "TapBody")]
-    pub tap_body: Vec<Motion>,
-    #[serde(default, rename = "PinchIn")]
-    pub pinch_in: Vec<Motion>,
-    #[serde(default, rename = "PinchOut")]
-    pub pinch_out: Vec<Motion>,
-    #[serde(default)]
-    pub shake: Vec<Motion>,
-    #[serde(default, rename = "FlickHead")]
-    pub flick_head: Vec<Motion>,
-    #[serde(default, rename = "")]
-    pub azur_lane: Vec<Motion>,
-}
+//#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+//#[serde(rename_all = "PascalCase")]
+//pub struct Motions {
+//    #[serde(default)]
+//    pub idle: Vec<Motion>,
+//    #[serde(default, rename = "TapBody")]
+//    pub tap_body: Vec<Motion>,
+//    #[serde(default, rename = "PinchIn")]
+//    pub pinch_in: Vec<Motion>,
+//    #[serde(default, rename = "PinchOut")]
+//    pub pinch_out: Vec<Motion>,
+//    #[serde(default)]
+//    pub shake: Vec<Motion>,
+//    #[serde(default, rename = "FlickHead")]
+//    pub flick_head: Vec<Motion>,
+//    #[serde(default, rename = "")]
+//    pub other: Vec<Motion>,
+//}
+
+pub type Motions = HashMap<String, Vec<Motion>>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]

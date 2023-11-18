@@ -9,12 +9,12 @@ pub const SOCKET_ADDR: &'static str = "/run/user/1000/rusty-ships.sock";
 pub const USAGE:       &'static str =
 "
 Usage:
-    set <motion>    queue <motion>
-    play            resume animation
-    pause           pause animation
-    toggle          toggle animation
-    exit            exit the application
-    help            print this info and quit
+    set [class] <motion>    queue <motion> from <class>
+    play                    resume animation
+    pause                   pause animation
+    toggle                  toggle animation
+    exit                    exit the application
+    help                    print this info and quit
 ";
 
 //  __  __
@@ -25,7 +25,7 @@ Usage:
 //                             |___/
 
 pub enum Message {
-    SetMotion(String),
+    SetMotion((String, String)),
     Toggle,
     Pause,
     Play,
@@ -49,9 +49,20 @@ impl Message {
                 "pause"  => Some(Message::Pause),
                 "play"   => Some(Message::Play),
                 "exit"   => Some(Message::Exit),
-                "set"    => if let Some(motion) = message.next() {
-                    Some(Message::SetMotion(motion.to_string()))
-                } else {None}
+                "set"    => {
+                    let first = match message.next() {
+                        Some(f) => f,
+                        None    => return None
+                    };
+                    let result = match message.next() {
+                        Some(second) => (first.to_string(),
+                                         second.to_string()),
+                        None         => ("".to_string(),
+                                         first.to_string())
+                    };
+
+                    Some(Message::SetMotion(result))
+                }
                 _ => None
             }
             None => None
@@ -63,7 +74,7 @@ impl Display for Message {
     fn fmt(&self,
            f: &mut Formatter<'_>) -> Result<(), Error> {
         match self {
-            Message::SetMotion(s) => write!(f, "set:{}", s),
+            Message::SetMotion(s) => write!(f, "set:{}:{}", s.0, s.1),
             Message::Toggle       => write!(f, "toggle:"),
             Message::Pause        => write!(f, "pause:"),
             Message::Play         => write!(f, "play:"),
