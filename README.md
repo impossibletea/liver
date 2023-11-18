@@ -90,6 +90,45 @@ particular model to use inside that directory.
 Configuration of motions that will be played at the program start (`open`, can
 be an array) and a motion fallback (`idle`) when motion queue is empty.
 
+Specified as a 2-size array, as Live2D motions have classes. So, for example,
+if your model has the following motion file references:
+
+```json
+{
+  "FileReferences": {
+    "Motions": {
+      "Idle": [
+        {
+          "Name": "Idle",
+          "File": "motions/Idle.motion3.json",
+          "Weight": 1
+        }
+      ],
+      "Tap": [
+        {
+          "Name": "Anim",
+          "File": "motions/Anim_1.motion3.json",
+          "Weight": 1
+        }
+      ]
+    }
+  }
+}
+```
+
+Then configuring these motions should be done as follows:
+
+```toml
+[model.motions]
+open = [
+    ["Tap", "Anim_1"],
+]
+idle = ["Idle", "Idle"]
+```
+
+> [!NOTE]
+> Currently filenames are used for motion identification, not the `Name` field
+
 ## Usage
 
 Launch the app with `rusty-ships`. That's it, it does not accept command line
@@ -98,7 +137,9 @@ unless you forgot to set it in configuration.
 
 Playback can be controlled via `rusty-ships-ctl`. The following argumets are
 accepted:
-* `set <motion>`: Queues the motion with that name, if available
+
+* `set [class] <motion>`: Queues the motion from the class with that name, if
+  available. Class can be omitted, in that case it will be treated as `""`
 * `pause`, `play`, `toggle`: self-explanatory
 * `exit`: tells the program that you want to quit
 
