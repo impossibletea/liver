@@ -46,7 +46,7 @@ const VERTICES_CHANGED: DynamicFlags = DynamicFlags::VERTEX_POSITIONS_CHANGED;
 
 pub struct Model {
     model:     UserModel,
-    motions:   HashMap<String, MotionData>,
+    motions:   Motions,
     queue:     Queue,
     canvas:    CanvasInfo,
     textures:  Vec<SrgbTexture2d>,
@@ -58,6 +58,9 @@ pub struct Model {
 // | |\/| |/ _ \| __| |/ _ \| '_ \| | | |/ _` | __/ _` |
 // | |  | | (_) | |_| | (_) | | | | |_| | (_| | || (_| |
 // |_|  |_|\___/ \__|_|\___/|_| |_|____/ \__,_|\__\__,_|
+
+type Motions = HashMap<String, MotionClass>;
+type MotionClass = HashMap<String, MotionData>;
 
 struct MotionData {
     motion:   Motion,
@@ -72,12 +75,12 @@ struct MotionData {
 //  \__\_\\__,_|\___|\__,_|\___|
 
 struct Queue {
-    lineup:    VecDeque<String>,
-    current:   Option<String>,
+    lineup:    VecDeque<(String, String)>,
+    current:   Option<(String, String)>,
     duration:  f32,
     elapsed:   f32,
     is_paused: bool,
-    idle:      String,
+    idle:      (String, String),
 }
 
 //   ____                          ___        __
@@ -127,10 +130,13 @@ impl Model {
                                    display)?;
 
         if let Some(q) = &config.model.motions.open {
-            q.iter().for_each(|m| model.queue(m).unwrap_or(()));
+            q.iter().for_each(|(c, m)| model.queue((c, m)).unwrap_or(()));
         }
 
-        if let Some(effect) = model.motions.get_mut("effect") {
+        if let Some(effect) =
+            model.motions
+            .get_mut("")
+            .and_then(|c| c.get_mut("effect")) {
             effect.motion.play();
         }
 
@@ -201,44 +207,51 @@ impl Model {
 
         let mut motions = HashMap::new();
 
-        let mut motion_files = model3.file_references.motions.azur_lane.iter();
-        while let Some(m) = motion_files.next() {
-            let name =
-                m.file.file_name()
-                .and_then(|f| f.to_str())
-                .and_then(|s| s.split('.').next())
-                .map(|s| s.to_string());
+        let mut motion_classes = model3.file_references.motions.iter();
+        while let Some((class_name, c)) = motion_classes.next() {
+            let mut class = HashMap::new();
+            eprintln!("Adding motions from class \"{}\":", class_name);
 
-            let n = match name {
-                Some(s) => s,
-                None    => {eprintln!("Fucked up motion name"); continue}
-            };
+            let mut motion_files = c.iter();
+            while let Some(m) = motion_files.next() {
+                let name =
+                    m.file.file_name()
+                    .and_then(|f| f.to_str())
+                    .and_then(|s| s.split('.').next())
+                    .map(|s| s.to_string());
 
-            if motions.contains_key(&n) {
-                eprintln!("Duplicated motion {n}");
-                continue;
+                let n = match name {
+                    Some(s) => s,
+                    None    => {eprintln!("Fucked up motion name"); continue}
+                };
+
+                if motions.contains_key(&n) {
+                    eprintln!("Duplicated motion {n}");
+                    continue;
+                }
+
+                let motion3 =
+                    File::open(path.join(&m.file))
+                    .map_err(|e| format!("Error opening json: {e}"))
+                    .and_then(|f| {
+                        Motion3::from_reader(f)
+                        .map_err(|e| format!("Error parsing json: {e}"))
+                    })?;
+
+                let looped   = motion3.meta.looped;
+                let duration = motion3.meta.duration;
+                let motion   = Motion::new(motion3);
+
+                let m = MotionData {
+                    looped,
+                    duration,
+                    motion,
+                };
+
+                eprintln!("    Added motion {n}");
+                class.insert(n, m);
             }
-
-            let motion3 =
-                File::open(path.join(&m.file))
-                .map_err(|e| format!("Error opening json: {e}"))
-                .and_then(|f| {
-                    Motion3::from_reader(f)
-                    .map_err(|e| format!("Error parsing json: {e}"))
-                })?;
-
-            let looped   = motion3.meta.looped;
-            let duration = motion3.meta.duration;
-            let motion   = Motion::new(motion3);
-
-            let m = MotionData {
-                looped,
-                duration,
-                motion,
-            };
-
-            eprintln!("Added motion {n}");
-            motions.insert(n, m);
+            motions.insert(class_name.to_string(), class);
         }
 
         //    __ _ _   _  ___ _   _  ___
@@ -249,7 +262,8 @@ impl Model {
 
         let idle = match config.model.motions.idle.clone() {
             Some(m) => m,
-            None    => "idle".to_string()
+            None    => ("".to_string(),
+                        "idle".to_string())
         };
 
         let queue = Queue {
@@ -389,8 +403,9 @@ impl Model {
 
         let motion_data =
             &mut self.motions
-            .get_mut(current)
-            .ok_or(format!("No motion {current}"))?;
+            .get_mut(&current.0)
+            .and_then(|class| class.get_mut(&current.1))
+            .ok_or(format!("No motion {} in {}", current.1, current.0))?;
 
         let motion = &mut motion_data.motion;
         motion.tick(dt);
@@ -398,12 +413,16 @@ impl Model {
         .update(self.model.model_mut())
         .map_err(|e| format!("Failed to update model: {e}"))?;
 
-        if let Some(effect_data) = &mut self.motions.get_mut("effect") {
-            let effect = &mut effect_data.motion;
-            effect.tick(dt);
-            effect
-            .update(self.model.model_mut())
-            .map_err(|e| format!("Failed to update model: {e}"))?;
+        let effect =
+            &mut self.motions
+            .get_mut("")
+            .and_then(|c| c.get_mut("effect"));
+        if let Some(effect_data) = effect {
+                let effect = &mut effect_data.motion;
+                effect.tick(dt);
+                effect
+                .update(self.model.model_mut())
+                .map_err(|e| format!("Failed to update model: {e}"))?;
         }
 
         self.model.model_mut().update();
@@ -430,7 +449,8 @@ impl Model {
         };
 
         self.motions
-        .get_mut(current)
+        .get_mut(&current.0)
+        .and_then(|c| c.get_mut(&current.1))
         .map(|m| m.motion.play())
     }
 
@@ -448,7 +468,8 @@ impl Model {
         };
 
         self.motions
-        .get_mut(current)
+        .get_mut(&current.0)
+        .and_then(|c| c.get_mut(&current.1))
         .map(|m| m.motion.pause())
     }
 
@@ -479,7 +500,8 @@ impl Model {
         };
 
         self.motions
-        .get_mut(current)
+        .get_mut(&current.0)
+        .and_then(|c| c.get_mut(&current.1))
         .map(|m| m.motion.stop())
     }
 
@@ -498,16 +520,20 @@ impl Model {
     // (_|_) |___/\___|\__| |_| |_| |_|\___/ \__|_|\___/|_| |_|
 
     fn set_motion(&mut self,
-                  new: &str) -> Option<()> {
-        let motion_data = &mut self.motions.get_mut(new)?;
+                  new: (&str, &str)) -> Option<()> {
+        let motion_data =
+            &mut self.motions
+            .get_mut(new.0)
+            .and_then(|c| c.get_mut(new.1))?;
 
         motion_data.motion.set_looped(motion_data.looped);
 
-        self.queue.current = Some(new.to_string());
+        self.queue.current = Some((new.0.to_string(),
+                                   new.1.to_string()));
         self.queue.duration = motion_data.duration;
         self.queue.elapsed = 0.;
         self.restart();
-        eprintln!("Set motion {new}");
+        eprintln!("Set motion {} from {}", new.1, new.0);
         Some(())
     }
 
@@ -518,12 +544,18 @@ impl Model {
     //           |_|
 
     pub fn queue(&mut self,
-                 new: &str) -> Option<()> {
-        if !self.motions.contains_key(new) {return None;}
+                 new: (&str, &str)) -> Option<()> {
+        let has_motion =
+            self.motions.get(new.0)
+            .map(|c| c.contains_key(new.1))
+            .unwrap_or(false);
+
+        if !has_motion {return None}
 
         if self.queue.current.is_some() {
-            self.queue.lineup.push_back(new.to_string());
-            eprintln!("Queued motion {new}");
+            self.queue.lineup.push_back((new.0.to_string(),
+                                         new.1.to_string()));
+            eprintln!("Queued motion {} from {}", new.1, new.0);
         } else {
             self.set_motion(new);
         }
@@ -542,7 +574,8 @@ impl Model {
             None    => self.queue.idle.clone()
         };
 
-        self.set_motion(next.as_str())
+        self.set_motion((next.0.as_str(),
+                         next.1.as_str()))
     }
 
     //                       _           _

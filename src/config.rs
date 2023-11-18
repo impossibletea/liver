@@ -41,8 +41,8 @@ pub struct ModelConfig {
 
 #[derive(Serialize, Deserialize)]
 pub struct MotionConfig {
-    pub open: Option<Vec<String>>,
-    pub idle: Option<String>,
+    pub open: Option<Vec<(String, String)>>,
+    pub idle: Option<(String, String)>,
 }
 
 impl Default for Config {
