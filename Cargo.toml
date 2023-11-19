@@ -22,3 +22,4 @@ glium = "0.32.1"
 image = "0.24.7"
 serde = { version = "1.0.188", features = ["derive"]}
 confy = "0.5.1"
+takeable-option = "0.5.0"

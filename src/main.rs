@@ -1,6 +1,8 @@
 use std::{
     fs,
+    env,
     thread,
+    rc::Rc,
     io::Read,
     path::Path,
     time::Instant,
@@ -8,8 +10,11 @@ use std::{
     os::unix::net::UnixListener,
 };
 use glium::{
+    Frame,
     Display,
     Surface,
+    program::Program,
+    backend::{Facade, Context},
     glutin::{
         ContextBuilder,
         dpi::LogicalSize,
@@ -17,7 +22,6 @@ use glium::{
         event::{Event, WindowEvent},
         event_loop::EventLoopBuilder,
     },
-    program::Program,
 };
 
 mod config;
@@ -28,6 +32,9 @@ use message::{Message, SOCKET_ADDR};
 
 mod framework;
 use framework::Model;
+
+mod xsecurelock;
+use xsecurelock::XSecureLock;
 
 //                  _
 //  _ __ ___   __ _(_)_ __
@@ -49,12 +56,12 @@ fn main() -> Result<(), String> {
                     CONFIG)
         .map_err(|e| format!("Failed to load config: {e}"))?;
 
-    //                        _     _                   
-    //    _____   _____ _ __ | |_  | | ___   ___  _ __  
-    //   / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \ 
+    //                        _     _
+    //    _____   _____ _ __ | |_  | | ___   ___  _ __
+    //   / _ \ \ / / _ \ '_ \| __| | |/ _ \ / _ \| '_ \
     //  |  __/\ V /  __/ | | | |_  | | (_) | (_) | |_) |
-    // (_)___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/ 
-    //                                           |_|    
+    // (_)___| \_/ \___|_| |_|\__| |_|\___/ \___/| .__/
+    //                                           |_|
 
     let event_loop =
         EventLoopBuilder::<Message>::with_user_event()
@@ -101,22 +108,31 @@ fn main() -> Result<(), String> {
     // (_)__,_|_|___/ .__/|_|\__,_|\__, |
     //              |_|            |___/
 
-    let (width, height) = config.window.size.into();
-    let display = {
-        let title = config.window.title.clone();
-
-        Display::new(WindowBuilder::new()
-                     .with_inner_size(LogicalSize::new(width,
-                                                       height))
-                     .with_title(title)
-                     .with_decorations(false)
-                     .with_transparent(true),
-                     ContextBuilder::new()
-                     .with_vsync(true)
-                     .with_double_buffer(Some(true)),
-                     &event_loop)
-        .map_err(|e| format!("Failed to create display: {e}"))
-    }?;
+    let display = match env::var("XSCREENSAVER_WINDOW") {
+        Ok(xwin) => {
+            let xwin: u64 =
+                xwin.parse()
+                .expect("xsecurelock to provide valid window id");
+            Hack::XSecureLock(XSecureLock::new(xwin)?)
+        }
+        Err(_) => {
+            let (width, height) = config.window.size.into();
+            let title = config.window.title.clone();
+            let display =
+                Display::new(WindowBuilder::new()
+                             .with_inner_size(LogicalSize::new(width,
+                                                               height))
+                             .with_title(title)
+                             .with_decorations(false)
+                             .with_transparent(true),
+                             ContextBuilder::new()
+                             .with_vsync(true)
+                             .with_double_buffer(Some(true)),
+                             &event_loop)
+                .map_err(|e| format!("Failed to create display: {e}"))?;
+            Hack::Display(display)
+        }
+    };
 
     //    _ __  _ __ ___   __ _ _ __ __ _ _ __ ___
     //   | '_ \| '__/ _ \ / _` | '__/ _` | '_ ` _ \
@@ -149,6 +165,11 @@ fn main() -> Result<(), String> {
     let mut last_frame = Instant::now();
 
     let mut aspect = {
+        let (width, height) =
+            display
+            .get_context()
+            .get_framebuffer_dimensions();
+
         let r = max(width, height) as f32 / min(width, height) as f32;
         let (x, y) = match config.window.fit {
             FitConfig::Contain => (1./r, 1.),
@@ -233,3 +254,25 @@ fn main() -> Result<(), String> {
     });
 }
 
+enum Hack {
+    XSecureLock(XSecureLock),
+    Display(Display),
+}
+
+impl Hack {
+    fn draw(&self) -> Frame {
+        match self {
+            Hack::XSecureLock(x) => x.draw(),
+            Hack::Display(d)     => d.draw(),
+        }
+    }
+}
+
+impl Facade for Hack {
+    fn get_context(&self) -> &Rc<Context> {
+        match self {
+            Hack::XSecureLock(x) => x.get_context(),
+            Hack::Display(d)     => d.get_context(),
+        }
+    }
+}

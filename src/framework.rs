@@ -5,12 +5,12 @@ use std::{
 };
 use glium::{
     Blend,
-    Display,
     Surface,
     uniform,
     DrawParameters,
     BlendingFunction,
     implement_vertex,
+    backend::Facade,
     program::Program,
     vertex::VertexBuffer,
     LinearBlendingFactor as F,
@@ -124,8 +124,8 @@ impl Model {
     //  _ _  | | | |  __/\ V  V /
     // (_|_) |_| |_|\___| \_/\_/
 
-    pub fn new(config:  &Config,
-               display: &Display) -> Result<Self, String> {
+    pub fn new<T: Facade + ?Sized>(config:  &Config,
+                                   display: &T) -> Result<Self, String> {
         let mut model = Self::init(config,
                                    display)?;
 
@@ -149,8 +149,8 @@ impl Model {
     //  _ _  | | | | | | |_
     // (_|_) |_|_| |_|_|\__|
 
-    fn init(config:  &Config,
-            display: &Display) -> Result<Self, String> {
+    fn init<T: Facade + ?Sized>(config:  &Config,
+                                display: &T) -> Result<Self, String> {
 
         //    _ __   __ _ _ __ ___   ___
         //   | '_ \ / _` | '_ ` _ \ / _ \
@@ -604,8 +604,8 @@ impl Drawable {
     //  _ _  | | | |  __/\ V  V /
     // (_|_) |_| |_|\___| \_/\_/
 
-    fn new(drawable: core::Drawable,
-           display:  &Display) -> Result<Self, String> {
+    fn new<T: Facade + ?Sized>(drawable: core::Drawable,
+                               display:  &T) -> Result<Self, String> {
         let constant_flags = drawable.constant_flags;
         let dynamic_flags = drawable.dynamic_flags;
 
