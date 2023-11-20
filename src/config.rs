@@ -43,6 +43,7 @@ pub struct ModelConfig {
 pub struct MotionConfig {
     pub open: Option<Vec<(String, String)>>,
     pub idle: Option<(String, String)>,
+    pub usr1: Option<(String, String)>,
 }
 
 impl Default for Config {
@@ -59,6 +60,7 @@ impl Default for Config {
                 motions: MotionConfig {
                     open: None,
                     idle: None,
+                    usr1: None,
                 },
             },
         }

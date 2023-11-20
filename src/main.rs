@@ -23,6 +23,10 @@ use glium::{
         event_loop::EventLoopBuilder,
     },
 };
+use signal_hook::{
+    iterator::Signals,
+    consts::{SIGTERM, SIGUSR1},
+};
 
 mod config;
 use config::{Config, FitConfig, constant::*};
@@ -98,6 +102,27 @@ fn main() -> Result<(), String> {
             .and_then(|m| proxy.send_event(m)
                           .map_err(|e| format!("Failed to send message: {e}")))
             .unwrap_or_else(|e| eprintln!("{e}"))
+        });
+    });
+
+    let mut signals =
+        Signals::new(&[SIGTERM, SIGUSR1])
+        .map_err(|e| format!("Failed to listen to signals: {e}"))?;
+
+    let proxy = event_loop.create_proxy();
+    let usr1 = config.model.motions.usr1.clone();
+
+    thread::spawn(move || {
+        signals.forever()
+        .for_each(|signal| {
+            match signal {
+                SIGTERM => proxy.send_event(Message::Exit),
+                SIGUSR1 => match usr1.clone() {
+                    Some(t) => proxy.send_event(Message::SetMotion(t)),
+                    None    => Ok(())
+                }
+                _       => Ok(())
+            }.unwrap_or(());
         });
     });
 

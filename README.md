@@ -51,6 +51,7 @@ path = "assets"
 [model.motions]
 open = []
 idle = ""
+usr1 = ""
 ```
 
 ### Window
@@ -88,7 +89,9 @@ particular model to use inside that directory.
 #### Motions
 
 Configuration of motions that will be played at the program start (`open`, can
-be an array) and a motion fallback (`idle`) when motion queue is empty.
+be an array), a motion fallback (`idle`) when motion queue is empty, and a
+motion set when SIGUSR1 is received (`usr1`, XSecureLock uses it when
+resetting saver).
 
 Specified as a 2-size array, as Live2D motions have classes. So, for example,
 if your model has the following motion file references:
@@ -143,13 +146,14 @@ accepted:
 * `pause`, `play`, `toggle`: self-explanatory
 * `exit`: tells the program that you want to quit
 
-Xsecurelock is supported. Appropriate mode is launched based on a presence of
-`XSCREENSAVER_WINDOW` environment variable. Symlink app to the appropriate
-location with appropriate name (e.g. `saver_ships`), and it should work
-automagically.
+Xsecurelock[^xsl] is supported. Appropriate mode is launched based on a
+presence of `XSCREENSAVER_WINDOW` environment variable. Symlink app to the
+appropriate location with appropriate name (e.g. `saver_ships`), and it should
+work automagically.
 
 [^live2d]: <https://www.live2d.com/en/>
 [^alviewer]: <https://l2d.algwiki.moe/>
 [^cubism-rs]: [Veykril/cubism-rs](https://github.com/Veykril/cubism-rs)
 [^confy]: <https://crates.io/crates/confy>
+[^xsl]: <https://github.com/google/xsecurelock>
 
