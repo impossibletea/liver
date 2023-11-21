@@ -125,8 +125,10 @@ impl Model {
     // (_|_) |_| |_|\___| \_/\_/
 
     pub fn new<T: Facade + ?Sized>(config:  &Config,
+                                   screen:  usize,
                                    display: &T) -> Result<Self, String> {
         let mut model = Self::init(config,
+                                   screen,
                                    display)?;
 
         if let Some(q) = &config.model.motions.open {
@@ -150,6 +152,7 @@ impl Model {
     // (_|_) |_|_| |_|_|\__|
 
     fn init<T: Facade + ?Sized>(config:  &Config,
+                                screen:  usize,
                                 display: &T) -> Result<Self, String> {
 
         //    _ __   __ _ _ __ ___   ___
@@ -159,7 +162,10 @@ impl Model {
 
         let name =
             config.model.name.clone()
-            .ok_or(format!("No model provided"))?;
+            .ok_or(format!("No model provided"))?
+            .get(screen)
+            .map(|n| n.clone())
+            .ok_or(format!("No model for index {screen}"))?;
 
         //                _   _
         //    _ __   __ _| |_| |__

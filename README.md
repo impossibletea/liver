@@ -46,7 +46,7 @@ title = "Rusty Ships"
 fit = "Cover"
 
 [model]
-name = ""
+name = []
 path = "assets"
 [model.motions]
 open = []
@@ -78,8 +78,11 @@ are supported:
 
 #### Name, Path
 
-Specifying `path` to resources (may include many models) and `name` of a
-particular model to use inside that directory.
+Specifying `path` to resources (may include many models) and a list of `name`s
+of particular models to use inside that directory.
+
+Model index is the `XSCREENSAVER_SAVER_INDEX` environment variable to comply
+with Xsecurelock's spec.
 
 > [!IMPORTANT]
 > Configuration assumes that the `name` is the name of directory inside of
@@ -90,7 +93,7 @@ particular model to use inside that directory.
 
 Configuration of motions that will be played at the program start (`open`, can
 be an array), a motion fallback (`idle`) when motion queue is empty, and a
-motion set when SIGUSR1 is received (`usr1`, XSecureLock uses it when
+motion set when SIGUSR1 is received (`usr1`, Xsecurelock uses it when
 resetting saver).
 
 Specified as a 2-size array, as Live2D motions have classes. So, for example,

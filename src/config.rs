@@ -34,7 +34,7 @@ pub enum FitConfig {
 
 #[derive(Serialize, Deserialize)]
 pub struct ModelConfig {
-    pub name:    Option<String>,
+    pub name:    Option<Vec<String>>,
     pub path:    String,
     pub motions: MotionConfig,
 }
