@@ -1,13 +1,15 @@
 use std::{
     env,
     io::Write,
+    error::Error,
     os::unix::net::UnixStream,
 };
 
 mod message;
 use message::{Message, SOCKET_ADDR};
 
-fn main() -> Result<(), String> {
+fn main() -> Result<(), Box<dyn Error>>
+{
     let mut args = env::args();
     args.next().expect("the first argument to be the executable");
 
@@ -17,14 +19,10 @@ fn main() -> Result<(), String> {
 
     match args.next() {
         Some(arg) => match arg.as_str() {
-            "toggle" => write!(&mut stream, "{}", Message::Toggle)
-                        .map_err(|e| format!("Failed to send message: {e}")),
-            "pause"  => write!(&mut stream, "{}", Message::Pause)
-                        .map_err(|e| format!("Failed to send message: {e}")),
-            "play"   => write!(&mut stream, "{}", Message::Play)
-                        .map_err(|e| format!("Failed to send message: {e}")),
-            "exit"   => write!(&mut stream, "{}", Message::Exit)
-                        .map_err(|e| format!("Failed to send message: {e}")),
+            "toggle" => write!(&mut stream, "{}", Message::Toggle)?,
+            "pause"  => write!(&mut stream, "{}", Message::Pause)?,
+            "play"   => write!(&mut stream, "{}", Message::Play)?,
+            "exit"   => write!(&mut stream, "{}", Message::Exit)?,
             "set"    => {
                 let first =
                     args.next()
@@ -37,16 +35,14 @@ fn main() -> Result<(), String> {
                                      first)
                 };
 
-                write!(&mut stream, "{}", Message::SetMotion(result))
-                .map_err(|e| format!("Failed to send message: {e}"))
+                write!(&mut stream, "{}", Message::SetMotion(result))?;
             },
-            "help"   => {println!("{}", message::USAGE); Ok(())}
-            _        => Err(format!("Command `{}` is not recognised", arg))
+            "help"   => println!("{}", message::USAGE),
+            _        => eprintln!("Command `{}` is not recognised", arg)
         }
-        None => {
-            eprintln!("{}", message::USAGE);
-            Err(format!("No command provided"))
-        }
-    }
+        None => eprintln!("{}", message::USAGE)
+    };
+
+    Ok(())
 }
 

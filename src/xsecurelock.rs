@@ -1,6 +1,7 @@
 use std::{
     rc::Rc,
     sync::Arc,
+    error::Error,
     cell::RefCell,
     os::raw::c_void,
 };
@@ -37,14 +38,14 @@ impl XSecureLock {
     //  _ _  | | | |  __/\ V  V /
     // (_|_) |_| |_|\___| \_/\_/
 
-    pub fn new(xwin: u64) -> Result<Self, String> {
+    pub fn new(xwin: u64) -> Result<Self, Box<dyn Error>>
+    {
         let backend = XSecureLockBack::new(xwin)?;
         let context = unsafe {
             Context::new(backend,
                          false,
-                         DebugCallbackBehavior::Ignore)
-            .map_err(|e| format!("Fucked up context: {e}"))
-        }?;
+                         DebugCallbackBehavior::Ignore)?
+        };
 
         Ok(Self(context))
     }
@@ -55,7 +56,8 @@ impl XSecureLock {
     //  _ _  | (_| | | | (_| |\ V  V /
     // (_|_)  \__,_|_|  \__,_| \_/\_/
 
-    pub fn draw(&self) -> Frame {
+    pub fn draw(&self) -> Frame
+    {
         Frame::new(self.0.clone(),
                    self.0.get_framebuffer_dimensions())
     }
@@ -73,19 +75,19 @@ struct XSecureLockBack {
 }
 
 impl XSecureLockBack {
-    fn new(xwin: u64) -> Result<Self, String> {
+    fn new(xwin: u64) -> Result<Self, Box<dyn Error>>
+    {
         let xconn =
             XConnection::new(None)
-            .map_err(|e| format!("Failed to connect to X: {e}"))
             .map(|x| Arc::new(x))?;
         let context = unsafe {
-            ContextBuilder::new()
-            .build_raw_x11_context(xconn.clone(),
-                                   xwin)
-            .map_err(|e| format!("Failed to create context: {e}"))
-            .and_then(|c| c.make_current()
-                          .map_err(|e| format!("Failed to current: {}", e.1)))
-        }?;
+            let context =
+                ContextBuilder::new()
+                .build_raw_x11_context(xconn.clone(),
+                                       xwin)?;
+            context.make_current()
+            .map_err(|e| e.1)?
+        };
 
         Ok(Self {
             context: Rc::new(RefCell::new(Takeable::new(context))),
@@ -96,7 +98,8 @@ impl XSecureLockBack {
 }
 
 unsafe impl Backend for XSecureLockBack {
-   fn swap_buffers(&self) -> Result<(), SwapErr> {
+   fn swap_buffers(&self) -> Result<(), SwapErr>
+   {
        match self.context.borrow().swap_buffers() {
            Ok(())                    => Ok(()),
            Err(ContErr::ContextLost) => Err(SwapErr::ContextLost),
@@ -105,11 +108,13 @@ unsafe impl Backend for XSecureLockBack {
    }
 
    unsafe fn get_proc_address(&self,
-                              symbol: &str) -> *const c_void {
+                              symbol: &str) -> *const c_void
+   {
        self.context.borrow().get_proc_address(symbol)
    }
 
-   fn get_framebuffer_dimensions(&self) -> (u32, u32) {
+   fn get_framebuffer_dimensions(&self) -> (u32, u32)
+   {
        let geometry = self.xconn.get_geometry(self.xwin);
 
        match geometry {
@@ -120,7 +125,8 @@ unsafe impl Backend for XSecureLockBack {
 
    fn is_current(&self) -> bool {self.context.borrow().is_current()}
 
-   unsafe fn make_current(&self) {
+   unsafe fn make_current(&self)
+   {
        let mut gl_window_takeable = self.context.borrow_mut();
        let gl_window = Takeable::take(&mut gl_window_takeable);
        let new_gl_window =

@@ -40,7 +40,8 @@ pub enum Message {
 //                             |___/
 
 impl Message {
-    pub fn parse(input: String) -> Option<Self> {
+    pub fn parse(input: String) -> Option<Self>
+    {
         let mut message = input.split(':');
 
         match message.next() {
@@ -72,7 +73,8 @@ impl Message {
 
 impl Display for Message {
     fn fmt(&self,
-           f: &mut Formatter<'_>) -> Result<(), Error> {
+           f: &mut Formatter<'_>) -> Result<(), Error>
+    {
         match self {
             Message::SetMotion(s) => write!(f, "set:{}:{}", s.0, s.1),
             Message::Toggle       => write!(f, "toggle:"),

@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     iter::zip,
+    error::Error,
     collections::{HashMap, VecDeque},
 };
 use glium::{
@@ -124,9 +125,11 @@ impl Model {
     //  _ _  | | | |  __/\ V  V /
     // (_|_) |_| |_|\___| \_/\_/
 
-    pub fn new<T: Facade + ?Sized>(config:  &Config,
-                                   screen:  usize,
-                                   display: &T) -> Result<Self, String> {
+    pub fn new<T>(config:  &Config,
+                  screen:  usize,
+                  display: &T) -> Result<Self, Box<dyn Error>>
+    where T: Facade + ?Sized
+    {
         let mut model = Self::init(config,
                                    screen,
                                    display)?;
@@ -151,9 +154,11 @@ impl Model {
     //  _ _  | | | | | | |_
     // (_|_) |_|_| |_|_|\__|
 
-    fn init<T: Facade + ?Sized>(config:  &Config,
-                                screen:  usize,
-                                display: &T) -> Result<Self, String> {
+    fn init<T>(config:  &Config,
+               screen:  usize,
+               display: &T) -> Result<Self, Box<dyn Error>>
+    where T: Facade + ?Sized
+    {
 
         //    _ __   __ _ _ __ ___   ___
         //   | '_ \ / _` | '_ ` _ \ / _ \
@@ -177,10 +182,12 @@ impl Model {
         let path =
             confy::get_configuration_file_path(APP_NAME,
                                                CONFIG)
-            .map_err(|e| format!("Error getting assets path: {e}"))
-            .and_then(|mut conf| {conf.pop(); Ok(conf)})?
-            .join(&config.model.path)
-            .join(&name);
+            .map(|mut conf| {
+                conf.pop();
+                conf
+                .join(&config.model.path)
+                .join(&name)
+            })?;
 
         //                        _      _ _____
         //    _ __ ___   ___   __| | ___| |___ /
@@ -188,11 +195,11 @@ impl Model {
         //  _| | | | | | (_) | (_| |  __/ |___) |
         // (_)_| |_| |_|\___/ \__,_|\___|_|____/
 
-        let model3 =
-            File::open(path.join(format!("{name}.model3.json")))
-            .map_err(|e| format!("Error opening json: {e}"))
-            .and_then(|f| Model3::from_reader(f)
-                          .map_err(|e| format!("Error parsing json: {e}")))?;
+        let model3 = {
+            let path = path.join(format!("{name}.model3.json"));
+            let file = File::open(path)?;
+            Model3::from_reader(file)?
+        };
 
         //                        _      _
         //    _ __ ___   ___   __| | ___| |
@@ -200,10 +207,8 @@ impl Model {
         //  _| | | | | | (_) | (_| |  __/ |
         // (_)_| |_| |_|\___/ \__,_|\___|_|
 
-        let model =
-            UserModel::from_model3(&path,
-                                   &model3)
-            .map_err(|e| format!("Error creating model: {e}"))?;
+        let model = UserModel::from_model3(&path,
+                                           &model3)?;
 
         //                    _   _
         //    _ __ ___   ___ | |_(_) ___  _ __  ___
@@ -236,13 +241,10 @@ impl Model {
                     continue;
                 }
 
-                let motion3 =
-                    File::open(path.join(&m.file))
-                    .map_err(|e| format!("Error opening json: {e}"))
-                    .and_then(|f| {
-                        Motion3::from_reader(f)
-                        .map_err(|e| format!("Error parsing json: {e}"))
-                    })?;
+                let motion3 = {
+                    let file = File::open(path.join(&m.file))?;
+                    Motion3::from_reader(file)?
+                };
 
                 let looped   = motion3.meta.looped;
                 let duration = motion3.meta.duration;
@@ -302,24 +304,22 @@ impl Model {
         //  | ||  __/>  <| |_| |_| | | |  __/\__ \
         // (_)__\___/_/\_\\__|\__,_|_|  \___||___/
 
-        let textures: Vec<_> =
-            Result::from_iter(
-                model3.file_references.textures.iter()
-                .map(|r| {
-                    let t_path = path.join(&r);
-                    let image =
-                        image::open(&t_path)
-                        .map_err(|e| format!("Error opening texture: {e}"))?
-                        .to_rgba8();
-                    let image_dimensions = image.dimensions();
-                    let image_raw =
-                        RawImage2d::from_raw_rgba_reversed(&image.into_raw(),
-                                                           image_dimensions);
-                    SrgbTexture2d::new(display,
-                                       image_raw)
-                    .map_err(|e| format!("Error creating texture: {e}"))
-                })
-            )?;
+        let mut textures = Vec::new();
+
+        let mut iter = model3.file_references.textures.iter();
+        while let Some(r) = iter.next() {
+            let t_path = path.join(&r);
+            let image =
+                image::open(&t_path)?
+                .to_rgba8();
+            let image_dimensions = image.dimensions();
+            let image_raw =
+                RawImage2d::from_raw_rgba_reversed(&image.into_raw(),
+                                                   image_dimensions);
+            let texture = SrgbTexture2d::new(display,
+                                             image_raw)?;
+            textures.push(texture);
+        };
 
         //       _                         _     _
         //    __| |_ __ __ ___      ____ _| |__ | | ___  ___
@@ -353,38 +353,41 @@ impl Model {
     //  _ _  | (_| | | | (_| |\ V  V /
     // (_|_)  \__,_|_|  \__,_| \_/\_/
 
-    pub fn draw<T: Surface>(&self,
-                            frame:   &mut T,
-                            program: &Program,
-                            aspect:  [f32; 2]) -> Result<(), String> {
+    pub fn draw<T>(&self,
+                   frame:   &mut T,
+                   program: &Program,
+                   aspect:  [f32; 2]) -> Result<(), Box<dyn Error>>
+    where T: Surface
+    {
         let drawables = self.ordered();
+        let mut drawables =
+            drawables
+            .iter()
+            .filter(|d| d.visible);
 
-        Result::from(
-            drawables.iter()
-            .filter(|d| d.visible)
-            .map(|d| {
-                let uniforms = uniform!{
-                    size:    self.canvas.size,
-                    origin:  self.canvas.origin,
-                    scale:   self.canvas.scale,
-                    opacity: d.opacity,
-                    tex:     &self.textures[d.texture_index as usize],
-                    aspect:  aspect,
-                };
+        while let Some(d) = drawables.next() {
+            let uniforms = uniform!{
+                size:    self.canvas.size,
+                origin:  self.canvas.origin,
+                scale:   self.canvas.scale,
+                opacity: d.opacity,
+                tex:     &self.textures[d.texture_index as usize],
+                aspect:  aspect,
+            };
 
-                let params = &DrawParameters {
-                    blend: d.blend,
-                    .. Default::default()
-                };
+            let params = &DrawParameters {
+                blend: d.blend,
+                .. Default::default()
+            };
 
-                frame.draw(&d.vertex_buffer,
-                           &d.index_buffer,
-                           program,
-                           &uniforms,
-                           &params)
-                .map_err(|e| format!("Failed to draw: {e}"))
-            }).collect()
-        )
+            frame.draw(&d.vertex_buffer,
+                       &d.index_buffer,
+                       program,
+                       &uniforms,
+                       &params)?;
+        }
+
+        Ok(())
     }
 
     //                        _       _
@@ -395,17 +398,17 @@ impl Model {
     //             |_|
 
     pub fn update(&mut self,
-                  dt: f64) -> Result<(), String> {
+                  dt: f64) -> Result<(), Box<dyn Error>>
+    {
         let queue = &mut self.queue;
         if queue.is_paused {return Ok(())}
         queue.elapsed += dt as f32;
 
         if queue.elapsed >= queue.duration {self.next();}
 
-        let current = match &self.queue.current {
-            Some(c) => c,
-            None    => return Err(format!("No motion set"))
-        };
+        let current = 
+            &self.queue.current.clone()
+            .ok_or(format!("No motion set"))?;
 
         let motion_data =
             &mut self.motions
@@ -416,8 +419,7 @@ impl Model {
         let motion = &mut motion_data.motion;
         motion.tick(dt);
         motion
-        .update(self.model.model_mut())
-        .map_err(|e| format!("Failed to update model: {e}"))?;
+        .update(self.model.model_mut())?;
 
         let effect =
             &mut self.motions
@@ -427,8 +429,7 @@ impl Model {
                 let effect = &mut effect_data.motion;
                 effect.tick(dt);
                 effect
-                .update(self.model.model_mut())
-                .map_err(|e| format!("Failed to update model: {e}"))?;
+                .update(self.model.model_mut())?;
         }
 
         self.model.model_mut().update();
@@ -447,7 +448,8 @@ impl Model {
     // (_|_) | .__/|_|\__,_|\__, |
     //       |_|            |___/
 
-    pub fn play(&mut self) -> Option<()> {
+    pub fn play(&mut self) -> Option<()>
+    {
         self.queue.is_paused = false;
         let current = match &self.queue.current {
             Some(c) => c,
@@ -466,7 +468,8 @@ impl Model {
     // (_|_) | .__/ \__,_|\__,_|___/\___|
     //       |_|
 
-    pub fn pause(&mut self) -> Option<()> {
+    pub fn pause(&mut self) -> Option<()>
+    {
         self.queue.is_paused = true;
         let current = match &self.queue.current {
             Some(c) => c,
@@ -486,7 +489,8 @@ impl Model {
     // (_|_)  \__\___/ \__, |\__, |_|\___|
     //                 |___/ |___/        
 
-    pub fn toggle(&mut self) -> Option<()> {
+    pub fn toggle(&mut self) -> Option<()>
+    {
         if self.queue.is_paused {self.play()} else {self.pause()}
     }
 
@@ -497,7 +501,8 @@ impl Model {
     // (_|_) |___/\__\___/| .__/
     //                    |_|
 
-    pub fn stop(&mut self) -> Option<()> {
+    pub fn stop(&mut self) -> Option<()>
+    {
         self.queue.is_paused = true;
         self.queue.elapsed = 0.;
         let current = match &self.queue.current {
@@ -526,7 +531,8 @@ impl Model {
     // (_|_) |___/\___|\__| |_| |_| |_|\___/ \__|_|\___/|_| |_|
 
     fn set_motion(&mut self,
-                  new: (&str, &str)) -> Option<()> {
+                  new: (&str, &str)) -> Option<()>
+    {
         let motion_data =
             &mut self.motions
             .get_mut(new.0)
@@ -550,7 +556,8 @@ impl Model {
     //           |_|
 
     pub fn queue(&mut self,
-                 new: (&str, &str)) -> Option<()> {
+                 new: (&str, &str)) -> Option<()>
+    {
         let has_motion =
             self.motions.get(new.0)
             .map(|c| c.contains_key(new.1))
@@ -574,7 +581,8 @@ impl Model {
     //  _ _  | | | |  __/>  <| |_
     // (_|_) |_| |_|\___/_/\_\\__|
 
-    fn next(&mut self) -> Option<()> {
+    fn next(&mut self) -> Option<()>
+    {
         let next = match self.queue.lineup.pop_front() {
             Some(m) => m,
             None    => self.queue.idle.clone()
@@ -590,7 +598,8 @@ impl Model {
     //  _ _  \__ \ (_) | |  | ||  __/ (_| |
     // (_|_) |___/\___/|_|   \__\___|\__,_|
 
-    fn ordered(&self) -> Vec<&Drawable> {
+    fn ordered(&self) -> Vec<&Drawable>
+    {
         let mut result = Vec::from_iter(self.drawables.iter());
         result.sort_unstable_by_key(|d| d.order);
         result
@@ -610,8 +619,10 @@ impl Drawable {
     //  _ _  | | | |  __/\ V  V /
     // (_|_) |_| |_|\___| \_/\_/
 
-    fn new<T: Facade + ?Sized>(drawable: core::Drawable,
-                               display:  &T) -> Result<Self, String> {
+    fn new<T>(drawable: core::Drawable,
+              display:  &T) -> Result<Self, Box<dyn Error>>
+    where T: Facade + ?Sized
+    {
         let constant_flags = drawable.constant_flags;
         let dynamic_flags = drawable.dynamic_flags;
 
@@ -630,8 +641,7 @@ impl Drawable {
             }).collect();
         let vertex_buffer =
             VertexBuffer::dynamic(display,
-                                  &vertices)
-            .map_err(|e| format!("Failed to create vertex buffer: {e}"))?;
+                                  &vertices)?;
 
         //    _           _             _            __  __
         //   (_)_ __   __| | _____  __ | |__  _   _ / _|/ _| ___ _ __
@@ -642,8 +652,7 @@ impl Drawable {
         let index_buffer =
             IndexBuffer::new(display,
                              PrimitiveType::TrianglesList,
-                             drawable.indices)
-            .map_err(|e| format!("Failed to create index buffer: {e}"))?;
+                             drawable.indices)?;
 
         //        _     _ _     _
         // __   _(_)___(_) |__ | | ___
@@ -748,7 +757,8 @@ impl Drawable {
     //             |_|
 
     fn update(&mut self,
-              drawable: core::Drawable) {
+              drawable: core::Drawable)
+    {
         let flags = drawable.dynamic_flags;
 
         if flags.contains(VERTICES_CHANGED) {

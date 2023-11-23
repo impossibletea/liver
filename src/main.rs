@@ -5,6 +5,7 @@ use std::{
     rc::Rc,
     io::Read,
     path::Path,
+    error::Error,
     time::Instant,
     cmp::{max, min},
     os::unix::net::UnixListener,
@@ -46,7 +47,8 @@ use xsecurelock::XSecureLock;
 // | | | | | | (_| | | | | |
 // |_| |_| |_|\__,_|_|_| |_|
 
-fn main() -> Result<(), String> {
+fn main() -> Result<(), Box<dyn Error>>
+{
 
     //                    __ _
     //    ___ ___  _ __  / _(_) __ _
@@ -55,10 +57,8 @@ fn main() -> Result<(), String> {
     // (_)___\___/|_| |_|_| |_|\__, |
     //                         |___/
 
-    let config: Config =
-        confy::load(APP_NAME,
-                    CONFIG)
-        .map_err(|e| format!("Failed to load config: {e}"))?;
+    let config: Config = confy::load(APP_NAME,
+                                     CONFIG)?;
 
     //                        _     _
     //    _____   _____ _ __ | |_  | | ___   ___  _ __
@@ -81,9 +81,7 @@ fn main() -> Result<(), String> {
         }
     }
 
-    let listener =
-        UnixListener::bind(path)
-        .map_err(|e| format!("Failed to listen to the socket: {e}"))?;
+    let listener = UnixListener::bind(path)?;
 
     let proxy = event_loop.create_proxy();
 
@@ -105,9 +103,7 @@ fn main() -> Result<(), String> {
         });
     });
 
-    let mut signals =
-        Signals::new(&[SIGTERM, SIGUSR1])
-        .map_err(|e| format!("Failed to listen to signals: {e}"))?;
+    let mut signals = Signals::new(&[SIGTERM, SIGUSR1])?;
 
     let proxy = event_loop.create_proxy();
     let usr1 = config.model.motions.usr1.clone();
@@ -153,8 +149,7 @@ fn main() -> Result<(), String> {
                              ContextBuilder::new()
                              .with_vsync(true)
                              .with_double_buffer(Some(true)),
-                             &event_loop)
-                .map_err(|e| format!("Failed to create display: {e}"))?;
+                             &event_loop)?;
             Hack::Display(display)
         }
     };
@@ -165,13 +160,10 @@ fn main() -> Result<(), String> {
     // (_) .__/|_|  \___/ \__, |_|  \__,_|_| |_| |_|
     //   |_|              |___/
 
-    let program = {
-        Program::from_source(&display,
-                             include_str!("vert.glsl"),
-                             include_str!("frag.glsl"),
-                             None)
-        .map_err(|e| format!("Failed to build shaders: {e}"))
-    }?;
+    let program = Program::from_source(&display,
+                                       include_str!("vert.glsl"),
+                                       include_str!("frag.glsl"),
+                                       None)?;
 
     //                        _      _
     //    _ __ ___   ___   __| | ___| |
@@ -292,7 +284,8 @@ enum Hack {
 }
 
 impl Hack {
-    fn draw(&self) -> Frame {
+    fn draw(&self) -> Frame
+    {
         match self {
             Hack::XSecureLock(x) => x.draw(),
             Hack::Display(d)     => d.draw(),
@@ -301,7 +294,8 @@ impl Hack {
 }
 
 impl Facade for Hack {
-    fn get_context(&self) -> &Rc<Context> {
+    fn get_context(&self) -> &Rc<Context>
+    {
         match self {
             Hack::XSecureLock(x) => x.get_context(),
             Hack::Display(d)     => d.get_context(),
