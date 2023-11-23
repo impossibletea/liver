@@ -47,7 +47,8 @@ pub struct MotionConfig {
 }
 
 impl Default for Config {
-    fn default() -> Self {
+    fn default() -> Self
+    {
         Self {
             window: WindowConfig {
                 size:  [800, 600],
