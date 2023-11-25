@@ -406,7 +406,7 @@ impl Model {
 
         if queue.elapsed >= queue.duration {self.next();}
 
-        let current = 
+        let current =
             &self.queue.current.clone()
             .ok_or(format!("No motion set"))?;
 
@@ -482,12 +482,12 @@ impl Model {
         .map(|m| m.motion.pause())
     }
 
-    //        _                    _      
-    //  _ _  | |_ ___   __ _  __ _| | ___ 
+    //        _                    _
+    //  _ _  | |_ ___   __ _  __ _| | ___
     // (_|_) | __/ _ \ / _` |/ _` | |/ _ \
     //  _ _  | || (_) | (_| | (_| | |  __/
     // (_|_)  \__\___/ \__, |\__, |_|\___|
-    //                 |___/ |___/        
+    //                 |___/ |___/
 
     pub fn toggle(&mut self) -> Option<()>
     {
@@ -793,10 +793,20 @@ impl Drawable {
 //    \_/ \___|_|   \__\___/_/\_\
 
 #[derive(Copy, Clone, Debug)]
-struct Vert {
+pub struct Vert {
     position:   [f32; 2],
     texture_uv: [f32; 2],
 }
 
 implement_vertex!(Vert, position, texture_uv);
 
+impl Vert {
+    pub fn new(position:   [f32; 2],
+               texture_uv: [f32; 2]) -> Self
+    {
+        Self {
+            position,
+            texture_uv,
+        }
+    }
+}
