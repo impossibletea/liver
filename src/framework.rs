@@ -604,6 +604,14 @@ impl Model {
         result.sort_unstable_by_key(|d| d.order);
         result
     }
+
+    //            _
+    //  _ _   ___(_)_______
+    // (_|_) / __| |_  / _ \
+    //  _ _  \__ \ |/ /  __/
+    // (_|_) |___/_/___\___|
+
+    pub fn size(&self) -> [f32; 2] {self.canvas.size}
 }
 
 //  ____                          _     _

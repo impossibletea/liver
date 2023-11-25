@@ -7,7 +7,6 @@ use std::{
     path::Path,
     error::Error,
     time::Instant,
-    cmp::{max, min},
     os::unix::net::UnixListener,
 };
 use glium::{
@@ -169,6 +168,10 @@ fn main() -> Result<(), Box<dyn Error>>
                                        include_str!("frag.glsl"),
                                        None)?;
 
+    let bg_program = Program::from_source(&display,
+                                          include_str!("bg.glsl"),
+                                          include_str!("frag.glsl"),
+                                          None)?;
 
     //    _                _                                   _
     //   | |__   __ _  ___| | ____ _ _ __ ___  _   _ _ __   __| |
@@ -212,28 +215,40 @@ fn main() -> Result<(), Box<dyn Error>>
     let mut last_frame = Instant::now();
 
     let mut aspect = {
-        let (width, height) =
+        let frame =
             display
             .get_context()
             .get_framebuffer_dimensions();
+        let view = [
+            frame.0 as f32,
+            frame.1 as f32
+        ];
+        let object = model.size();
+        let fit = &config.window.fit;
 
-        let r = max(width, height) as f32 / min(width, height) as f32;
-        let (x, y) = match config.window.fit {
-            FitConfig::Contain => (1./r, 1.),
-            FitConfig::Cover   => (1.,    r),
-        };
-        if width > height {[x, y]} else {[y, x]}
+        calc_aspect(object,
+                    view,
+                    fit)
     };
 
     let mut bg_aspect = {
-        let (width, height) =
+        let frame =
             display
             .get_context()
             .get_framebuffer_dimensions();
+        let view = [
+            frame.0 as f32,
+            frame.1 as f32
+        ];
+        let object = match &background_image {
+            Some(bg) => bg.size,
+            None     => [1., 1.]
+        };
+        let fit = &FitConfig::Cover;
 
-        let r = max(width, height) as f32 / min(width, height) as f32;
-        let (x, y) = (1., r);
-        if width > height {[x, y]} else {[y, x]}
+        calc_aspect(object,
+                    view,
+                    fit)
     };
 
     event_loop.run(move |event,
@@ -263,19 +278,31 @@ fn main() -> Result<(), Box<dyn Error>>
                 WindowEvent::CloseRequested => control_flow.set_exit(),
                 WindowEvent::Resized(s) => {
                     aspect = {
-                        let (w, h) = (s.width, s.height);
-                        let r = max(w, h) as f32 / min(w, h) as f32;
-                        let (x, y) = match config.window.fit {
-                            FitConfig::Contain => (1./r, 1.),
-                            FitConfig::Cover   => (1.,    r),
-                        };
-                        if w > h {[x, y]} else {[y, x]}
+                        let view = [
+                            s.width as f32,
+                            s.height as f32
+                        ];
+                        let object = model.size();
+                        let fit = &config.window.fit;
+
+                        calc_aspect(object,
+                                    view,
+                                    fit)
                     };
                     bg_aspect = {
-                        let (w, h) = (s.width, s.height);
-                        let r = max(w, h) as f32 / min(w, h) as f32;
-                        let (x, y) = (1., r);
-                        if w > h {[x, y]} else {[y, x]}
+                        let view = [
+                            s.width as f32,
+                            s.height as f32
+                        ];
+                        let object = match &background_image {
+                            Some(bg) => bg.size,
+                            None     => [1., 1.]
+                        };
+                        let fit = &FitConfig::Cover;
+
+                        calc_aspect(object,
+                                    view,
+                                    fit)
                     };
                 }
                 _ => {}
@@ -295,19 +322,16 @@ fn main() -> Result<(), Box<dyn Error>>
                         let bg =
                             background_image.as_ref()
                             .expect("image to be here");
-                        let o: [f32; 2] = [0., 0.,];
-                        let sc: f32 = 1.;
+                        let op: f32 = 1.;
                         let uniforms = uniform!{
-                            size: bg.size,
-                            origin: o,
-                            scale: sc,
                             tex: &bg.texture,
                             aspect: bg_aspect,
+                            opacity: op,
                         };
 
                         frame.draw(&bg.vertex_buffer,
                                    &bg.index_buffer,
-                                   &program,
+                                   &bg_program,
                                    &uniforms,
                                    &Default::default())
                         .unwrap_or_else(|e| eprintln!("{e}"))
@@ -409,6 +433,7 @@ impl Background {
         let (x, y) = (image_dimensions.0 as f32,
                       image_dimensions.1 as f32);
         let size = [x, y];
+        let (rx, ry) = (x/y, 1.);
         let image_raw =
             RawImage2d::from_raw_rgba_reversed(&image.into_raw(),
                                                image_dimensions);
@@ -417,10 +442,10 @@ impl Background {
                                          image_raw)?;
 
         let vertices = vec![
-            Vert::new([0., 0.], [0., 0.]),
-            Vert::new([0.,  y], [0., 1.]),
-            Vert::new([ x, 0.], [1., 0.]),
-            Vert::new([ x,  y], [1., 1.]),
+            Vert::new([-rx, -ry], [0., 0.]),
+            Vert::new([-rx,  ry], [0., 1.]),
+            Vert::new([ rx, -ry], [1., 0.]),
+            Vert::new([ rx,  ry], [1., 1.]),
         ];
         let indices: Vec<u16> = vec![0, 1, 2, 3];
 
@@ -436,5 +461,28 @@ impl Background {
             index_buffer,
             size,
         })
+    }
+}
+
+//                                  _
+//  _ _    __ _ ___ _ __   ___  ___| |_
+// (_|_)  / _` / __| '_ \ / _ \/ __| __|
+//  _ _  | (_| \__ \ |_) |  __/ (__| |_
+// (_|_)  \__,_|___/ .__/ \___|\___|\__|
+//                 |_|
+
+fn calc_aspect(object: [f32; 2],
+               view:   [f32; 2],
+               fit:    &FitConfig) -> [f32; 2]
+{
+    let view_ratio = view[0]/view[1];
+    let object_ratio = object[0]/object[1];
+    let plus_w = [1./view_ratio, 1.];
+    let plus_h = [1./object_ratio, view_ratio/object_ratio];
+    let mode = object_ratio < view_ratio;
+
+    match fit {
+        FitConfig::Contain => if mode {plus_w} else {plus_h}
+        FitConfig::Cover   => if mode {plus_h} else {plus_w}
     }
 }

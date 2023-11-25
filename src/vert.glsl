@@ -10,7 +10,8 @@ uniform vec2 aspect;
 
 out vec2 frag_uv;
 
-void main() {
+void main()
+{
 	frag_uv = texture_uv;
 	vec2 pos = position;
 	pos *= scale;  // canvas scale
