@@ -24,13 +24,26 @@ pub struct WindowConfig {
     pub size:  [u32; 2],
     pub title: String,
     pub fit:   FitConfig,
-    pub bg:    Option<String>,
+    pub bg:    BgConfig,
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum FitConfig {
     Contain,
     Cover,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BgConfig {
+    pub variant: BgType,
+    pub color:   Option<[f32; 4]>,
+    pub image:   Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum BgType {
+    Color,
+    Image,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -55,7 +68,11 @@ impl Default for Config {
                 size:  [800, 600],
                 title: "Rusty Ships".to_string(),
                 fit:   FitConfig::Cover,
-                bg:    None,
+                bg:    BgConfig {
+                    variant: BgType::Color,
+                    color:   Some([0., 0., 0., 0.]),
+                    image:   Some("".to_string()),
+                },
             },
             model: ModelConfig {
                 name:    None,
