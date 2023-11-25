@@ -267,12 +267,14 @@ fn main() -> Result<(), Box<dyn Error>>
                 .unwrap_or_else(|e| eprintln!("Failed to update model: {e}"));
             }
             Event::UserEvent(msg) => match msg {
-                    Message::SetMotion(m) => model.queue((m.0.as_str(),
+                    Message::SetMotion(m)   => model.set((m.0.as_str(),
                                                           m.1.as_str())),
-                    Message::Toggle       => model.toggle(),
-                    Message::Pause        => model.pause(),
-                    Message::Play         => model.play(),
-                    Message::Exit         => Some(control_flow.set_exit()),
+                    Message::QueueMotion(m) => model.queue((m.0.as_str(),
+                                                            m.1.as_str())),
+                    Message::Toggle         => model.toggle(),
+                    Message::Pause          => model.pause(),
+                    Message::Play           => model.play(),
+                    Message::Exit           => Some(control_flow.set_exit()),
                 }.unwrap_or(()),
             Event::WindowEvent {event, ..} => match event {
                 WindowEvent::CloseRequested => control_flow.set_exit(),
