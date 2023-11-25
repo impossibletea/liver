@@ -549,6 +549,25 @@ impl Model {
         Some(())
     }
 
+    //                 _
+    //  _ _   ___  ___| |_
+    // (_|_) / __|/ _ \ __|
+    //  _ _  \__ \  __/ |_
+    // (_|_) |___/\___|\__|
+
+    pub fn set(&mut self,
+               new: (&str, &str)) -> Option<()>
+    {
+        let has_motion =
+            self.motions.get(new.0)
+            .map(|c| c.contains_key(new.1))
+            .unwrap_or(false);
+
+        if !has_motion {return None}
+
+        self.set_motion(new)
+    }
+
     //  _ _    __ _ _   _  ___ _   _  ___
     // (_|_)  / _` | | | |/ _ \ | | |/ _ \
     //  _ _  | (_| | |_| |  __/ |_| |  __/
@@ -570,7 +589,7 @@ impl Model {
                                          new.1.to_string()));
             eprintln!("Queued motion {} from {}", new.1, new.0);
         } else {
-            self.set_motion(new);
+            self.set_motion(new)?;
         }
         Some(())
     }

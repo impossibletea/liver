@@ -166,10 +166,17 @@ unless you forgot to set it in configuration.
 Playback can be controlled via `rusty-ships-ctl`. The following argumets are
 accepted:
 
-* `set [class] <motion>`: Queues the motion from the class with that name, if
+* `set [class] <motion>`: Sets the motion from the class with that name, if
   available. Class can be omitted, in that case it will be treated as `""`
+* `queue [class] <motion>`: Queues the motion from the class with that name,
+  if available. Class can be omitted, in that case it will be treated as `""`
 * `pause`, `play`, `toggle`: self-explanatory
 * `exit`: tells the program that you want to quit
+
+> [!NOTE]
+> Queue differs from setting in a sense that setting starts motion
+> immediately, potentially breaking animation, if triggered with bad timing,
+> while queue always waits for the current animation to finish.
 
 Xsecurelock[^xsl] is supported. Appropriate mode is launched based on a
 presence of `XSCREENSAVER_WINDOW` environment variable. Symlink app to the

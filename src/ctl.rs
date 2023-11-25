@@ -37,6 +37,20 @@ fn main() -> Result<(), Box<dyn Error>>
 
                 write!(&mut stream, "{}", Message::SetMotion(result))?;
             },
+            "queue"  => {
+                let first =
+                    args.next()
+                    .ok_or(format!("What motion to set?"))?;
+
+                let result = match args.next() {
+                    Some(second) => (first,
+                                     second),
+                    None         => ("".to_string(),
+                                     first)
+                };
+
+                write!(&mut stream, "{}", Message::QueueMotion(result))?;
+            },
             "help"   => println!("{}", message::USAGE),
             _        => eprintln!("Command `{}` is not recognised", arg)
         }
