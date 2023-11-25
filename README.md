@@ -44,6 +44,10 @@ documentation[^confy]). Config and its default parameters are as follows:
 size = [800, 600]
 title = "Rusty Ships"
 fit = "Cover"
+[window.bg]
+variant = "Color"
+color = [0.0, 0.0, 0.0, 0.0]
+image = ""
 
 [model]
 name = []
@@ -73,6 +77,24 @@ Fit mode represents how the canvas will fit in the window. Currently two modes
 are supported:
 * Cover: scaled and clipped, takes all the window
 * Contain: scaled so that all the canvas is shown
+
+#### Background
+
+Two values for `variant` supported: `Image` and `Color`. Color is defined by
+`color` setting, which is an array of float RGBA values (four entries, 0.0 to
+1.0). Image is set as a relative path `image` from configuration directory.
+
+Both `image` and `color` are optional. Setting `variant: 'Image'` will fail
+with no `image`. Setting `variant: 'Color'` with no `color` with be clear
+transparent background equivalet to the following:
+
+```toml
+color = [0.0, 0.0, 0.0, 0.0]
+```
+
+> [!NOTE]
+> Background image is not affected by `fit` setting and always works as with
+> `Cover` setting.
 
 ### Model
 

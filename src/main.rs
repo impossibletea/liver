@@ -34,7 +34,7 @@ use signal_hook::{
 };
 
 mod config;
-use config::{Config, FitConfig, constant::*};
+use config::{Config, FitConfig, BgType, constant::*};
 
 mod message;
 use message::{Message, SOCKET_ADDR};
@@ -177,9 +177,15 @@ fn main() -> Result<(), Box<dyn Error>>
     // (_)_.__/ \__,_|\___|_|\_\__, |_|  \___/ \__,_|_| |_|\__,_|
     //                         |___/
 
-    let background = match &config.window.bg {
-        Some(bg) => Some(Background::new(bg, &display)?),
-        None     => None
+    let background_image = match &config.window.bg.variant {
+        BgType::Image => {
+            let bg =
+                config.window.bg.image.as_ref()
+                .ok_or(Box::from("No image provided"))
+                .and_then(|bg| Background::new(bg, &display))?;
+            Some(bg)
+        }
+        BgType::Color => None,
     };
 
     //                        _      _
@@ -284,8 +290,11 @@ fn main() -> Result<(), Box<dyn Error>>
 
                 let mut frame = display.draw();
 
-                match &background {
-                    Some(bg) => {
+                match &config.window.bg.variant {
+                    BgType::Image => {
+                        let bg =
+                            background_image.as_ref()
+                            .expect("image to be here");
                         let o: [f32; 2] = [0., 0.,];
                         let sc: f32 = 1.;
                         let uniforms = uniform!{
@@ -303,7 +312,12 @@ fn main() -> Result<(), Box<dyn Error>>
                                    &Default::default())
                         .unwrap_or_else(|e| eprintln!("{e}"))
                     }
-                    None => frame.clear_color(0., 0., 0., 0.)
+                    BgType::Color => {
+                        let c =
+                            config.window.bg.color.as_ref()
+                            .unwrap_or(&[0., 0., 0., 0.]);
+                        frame.clear_color(c[0], c[1], c[2], c[3])
+                    }
                 }
 
                 model
