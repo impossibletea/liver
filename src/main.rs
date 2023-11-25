@@ -14,8 +14,12 @@ use glium::{
     Frame,
     Display,
     Surface,
+    uniform,
     program::Program,
+    vertex::VertexBuffer,
     backend::{Facade, Context},
+    index::{IndexBuffer, PrimitiveType},
+    texture::{RawImage2d, SrgbTexture2d},
     glutin::{
         ContextBuilder,
         dpi::LogicalSize,
@@ -36,7 +40,7 @@ mod message;
 use message::{Message, SOCKET_ADDR};
 
 mod framework;
-use framework::Model;
+use framework::{Model, Vert};
 
 mod xsecurelock;
 use xsecurelock::XSecureLock;
@@ -165,6 +169,19 @@ fn main() -> Result<(), Box<dyn Error>>
                                        include_str!("frag.glsl"),
                                        None)?;
 
+
+    //    _                _                                   _
+    //   | |__   __ _  ___| | ____ _ _ __ ___  _   _ _ __   __| |
+    //   | '_ \ / _` |/ __| |/ / _` | '__/ _ \| | | | '_ \ / _` |
+    //  _| |_) | (_| | (__|   < (_| | | | (_) | |_| | | | | (_| |
+    // (_)_.__/ \__,_|\___|_|\_\__, |_|  \___/ \__,_|_| |_|\__,_|
+    //                         |___/
+
+    let background = match &config.window.bg {
+        Some(bg) => Some(Background::new(bg, &display)?),
+        None     => None
+    };
+
     //                        _      _
     //    _ __ ___   ___   __| | ___| |
     //   | '_ ` _ \ / _ \ / _` |/ _ \ |
@@ -199,6 +216,17 @@ fn main() -> Result<(), Box<dyn Error>>
             FitConfig::Contain => (1./r, 1.),
             FitConfig::Cover   => (1.,    r),
         };
+        if width > height {[x, y]} else {[y, x]}
+    };
+
+    let mut bg_aspect = {
+        let (width, height) =
+            display
+            .get_context()
+            .get_framebuffer_dimensions();
+
+        let r = max(width, height) as f32 / min(width, height) as f32;
+        let (x, y) = (1., r);
         if width > height {[x, y]} else {[y, x]}
     };
 
@@ -237,6 +265,12 @@ fn main() -> Result<(), Box<dyn Error>>
                         };
                         if w > h {[x, y]} else {[y, x]}
                     };
+                    bg_aspect = {
+                        let (w, h) = (s.width, s.height);
+                        let r = max(w, h) as f32 / min(w, h) as f32;
+                        let (x, y) = (1., r);
+                        if w > h {[x, y]} else {[y, x]}
+                    };
                 }
                 _ => {}
             }
@@ -249,10 +283,28 @@ fn main() -> Result<(), Box<dyn Error>>
                 //  \__,_|_|  \__,_| \_/\_/   |___/\__\__,_|_|   \__|
 
                 let mut frame = display.draw();
-                frame.clear_color(0.,
-                                  0.,
-                                  0.,
-                                  0.);
+
+                match &background {
+                    Some(bg) => {
+                        let o: [f32; 2] = [0., 0.,];
+                        let sc: f32 = 1.;
+                        let uniforms = uniform!{
+                            size: bg.size,
+                            origin: o,
+                            scale: sc,
+                            tex: &bg.texture,
+                            aspect: bg_aspect,
+                        };
+
+                        frame.draw(&bg.vertex_buffer,
+                                   &bg.index_buffer,
+                                   &program,
+                                   &uniforms,
+                                   &Default::default())
+                        .unwrap_or_else(|e| eprintln!("{e}"))
+                    }
+                    None => frame.clear_color(0., 0., 0., 0.)
+                }
 
                 model
                 .draw(&mut frame,
@@ -278,6 +330,12 @@ fn main() -> Result<(), Box<dyn Error>>
     });
 }
 
+//  _   _            _
+// | | | | __ _  ___| | __
+// | |_| |/ _` |/ __| |/ /
+// |  _  | (_| | (__|   <
+// |_| |_|\__,_|\___|_|\_\
+
 enum Hack {
     XSecureLock(XSecureLock),
     Display(Display),
@@ -300,5 +358,69 @@ impl Facade for Hack {
             Hack::XSecureLock(x) => x.get_context(),
             Hack::Display(d)     => d.get_context(),
         }
+    }
+}
+
+//  ____             _                                   _
+// | __ )  __ _  ___| | ____ _ _ __ ___  _   _ _ __   __| |
+// |  _ \ / _` |/ __| |/ / _` | '__/ _ \| | | | '_ \ / _` |
+// | |_) | (_| | (__|   < (_| | | | (_) | |_| | | | | (_| |
+// |____/ \__,_|\___|_|\_\__, |_|  \___/ \__,_|_| |_|\__,_|
+//                       |___/
+
+struct Background {
+    texture:       SrgbTexture2d,
+    vertex_buffer: VertexBuffer<Vert>,
+    index_buffer:  IndexBuffer<u16>,
+    size:          [f32; 2],
+}
+
+impl Background {
+    fn new<T>(bg: &str,
+              display: &T) -> Result<Self, Box<dyn Error>>
+    where T: Facade
+    {
+        let bg_path =
+            confy::get_configuration_file_path(APP_NAME,
+                                               CONFIG)
+            .map(|mut conf| {
+                conf.pop();
+                conf.join(&bg)
+            })?;
+
+        let image =
+            image::open(&bg_path)?
+            .to_rgba8();
+        let image_dimensions = image.dimensions();
+        let (x, y) = (image_dimensions.0 as f32,
+                      image_dimensions.1 as f32);
+        let size = [x, y];
+        let image_raw =
+            RawImage2d::from_raw_rgba_reversed(&image.into_raw(),
+                                               image_dimensions);
+
+        let texture = SrgbTexture2d::new(display,
+                                         image_raw)?;
+
+        let vertices = vec![
+            Vert::new([0., 0.], [0., 0.]),
+            Vert::new([0.,  y], [0., 1.]),
+            Vert::new([ x, 0.], [1., 0.]),
+            Vert::new([ x,  y], [1., 1.]),
+        ];
+        let indices: Vec<u16> = vec![0, 1, 2, 3];
+
+        let vertex_buffer = VertexBuffer::new(display,
+                                              &vertices)?;
+        let index_buffer = IndexBuffer::new(display,
+                                            PrimitiveType::TriangleStrip,
+                                            &indices)?;
+
+        Ok(Self {
+            texture,
+            vertex_buffer,
+            index_buffer,
+            size,
+        })
     }
 }

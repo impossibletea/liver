@@ -24,6 +24,7 @@ pub struct WindowConfig {
     pub size:  [u32; 2],
     pub title: String,
     pub fit:   FitConfig,
+    pub bg:    Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -54,6 +55,7 @@ impl Default for Config {
                 size:  [800, 600],
                 title: "Rusty Ships".to_string(),
                 fit:   FitConfig::Cover,
+                bg:    None,
             },
             model: ModelConfig {
                 name:    None,
