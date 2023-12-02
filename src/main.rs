@@ -33,7 +33,7 @@ use signal_hook::{
 };
 
 mod config;
-use config::{Config, FitConfig, BgType, constant::*};
+use config::{Config, FitConfig, BgType};
 
 mod message;
 use message::{Message, SOCKET_ADDR};
@@ -412,13 +412,7 @@ impl Background {
               display: &T) -> Result<Self, Box<dyn Error>>
     where T: Facade
     {
-        let bg_path =
-            confy::get_configuration_file_path(APP_NAME,
-                                               CONFIG)
-            .map(|mut conf| {
-                conf.pop();
-                conf.join(&bg)
-            })?;
+        let bg_path = expanduser::expanduser(bg)?;
 
         let image =
             image::open(&bg_path)?
