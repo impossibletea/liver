@@ -1,10 +1,14 @@
-use std::default::Default;
+use std::error::Error;
+
 use serde::{Serialize, Deserialize};
 
 pub mod constant {
     pub const APP_NAME:   &'static str = "rusty-ships";
     pub const CONFIG:     &'static str = "config";
 }
+
+mod toml;
+mod cli;
 
 //   ____             __ _
 //  / ___|___  _ __  / _(_) __ _
@@ -19,6 +23,13 @@ pub struct Config {
     pub model:  ModelConfig,
 }
 
+// __        ___           _                ____             __ _
+// \ \      / (_)_ __   __| | _____      __/ ___|___  _ __  / _(_) __ _
+//  \ \ /\ / /| | '_ \ / _` |/ _ \ \ /\ / / |   / _ \| '_ \| |_| |/ _` |
+//   \ V  V / | | | | | (_| | (_) \ V  V /| |__| (_) | | | |  _| | (_| |
+//    \_/\_/  |_|_| |_|\__,_|\___/ \_/\_/  \____\___/|_| |_|_| |_|\__, |
+//                                                                |___/
+
 #[derive(Serialize, Deserialize)]
 pub struct WindowConfig {
     pub size:  [u32; 2],
@@ -27,11 +38,25 @@ pub struct WindowConfig {
     pub bg:    BgConfig,
 }
 
+//  _____ _ _    ____             __ _
+// |  ___(_) |_ / ___|___  _ __  / _(_) __ _
+// | |_  | | __| |   / _ \| '_ \| |_| |/ _` |
+// |  _| | | |_| |__| (_) | | | |  _| | (_| |
+// |_|   |_|\__|\____\___/|_| |_|_| |_|\__, |
+//                                     |___/
+
 #[derive(Serialize, Deserialize)]
 pub enum FitConfig {
     Contain,
     Cover,
 }
+
+//  ____         ____             __ _
+// | __ )  __ _ / ___|___  _ __  / _(_) __ _
+// |  _ \ / _` | |   / _ \| '_ \| |_| |/ _` |
+// | |_) | (_| | |__| (_) | | | |  _| | (_| |
+// |____/ \__, |\____\___/|_| |_|_| |_|\__, |
+//        |___/                        |___/
 
 #[derive(Serialize, Deserialize)]
 pub struct BgConfig {
@@ -40,24 +65,61 @@ pub struct BgConfig {
     pub image:   String,
 }
 
+//  ____       _____
+// | __ )  __ |_   _|   _ _ __   ___
+// |  _ \ / _` || || | | | '_ \ / _ \
+// | |_) | (_| || || |_| | |_) |  __/
+// |____/ \__, ||_| \__, | .__/ \___|
+//        |___/     |___/|_|
+
 #[derive(Serialize, Deserialize)]
 pub enum BgType {
     Color,
     Image,
 }
 
+//  __  __           _      _  ____             __ _
+// |  \/  | ___   __| | ___| |/ ___|___  _ __  / _(_) __ _
+// | |\/| |/ _ \ / _` |/ _ \ | |   / _ \| '_ \| |_| |/ _` |
+// | |  | | (_) | (_| |  __/ | |__| (_) | | | |  _| | (_| |
+// |_|  |_|\___/ \__,_|\___|_|\____\___/|_| |_|_| |_|\__, |
+//                                                   |___/
+
 #[derive(Serialize, Deserialize)]
 pub struct ModelConfig {
-    pub name:    Vec<String>,
+    pub name:    Option<String>,
     pub path:    String,
     pub motions: MotionConfig,
 }
+
+//  __  __       _   _              ____             __ _
+// |  \/  | ___ | |_(_) ___  _ __  / ___|___  _ __  / _(_) __ _
+// | |\/| |/ _ \| __| |/ _ \| '_ \| |   / _ \| '_ \| |_| |/ _` |
+// | |  | | (_) | |_| | (_) | | | | |__| (_) | | | |  _| | (_| |
+// |_|  |_|\___/ \__|_|\___/|_| |_|\____\___/|_| |_|_| |_|\__, |
+//                                                        |___/
 
 #[derive(Serialize, Deserialize)]
 pub struct MotionConfig {
     pub open: Vec<(String, String)>,
     pub idle: Option<(String, String)>,
     pub usr1: Option<(String, String)>,
+}
+
+//   ____             __ _
+//  / ___|___  _ __  / _(_) __ _   _ _
+// | |   / _ \| '_ \| |_| |/ _` | (_|_)
+// | |__| (_) | | | |  _| | (_| |  _ _
+//  \____\___/|_| |_|_| |_|\__, | (_|_)
+//                         |___/
+
+impl Config {
+    pub fn new() -> Result<Config, Box<dyn Error>>
+    {
+        let mut config: Config = toml::config_file()?;
+        let _program = cli::cli_args(&mut config)?;
+        Ok(config)
+    }
 }
 
 impl Default for Config {
@@ -75,7 +137,7 @@ impl Default for Config {
                 },
             },
             model: ModelConfig {
-                name:    Vec::new(),
+                name:    None,
                 path:    "assets".to_string(),
                 motions: MotionConfig {
                     open: Vec::new(),

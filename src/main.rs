@@ -60,8 +60,7 @@ fn main() -> Result<(), Box<dyn Error>>
     // (_)___\___/|_| |_|_| |_|\__, |
     //                         |___/
 
-    let config: Config = confy::load(APP_NAME,
-                                     CONFIG)?;
+    let config = Config::new()?;
 
     //                        _     _
     //    _____   _____ _ __ | |_  | | ___   ___  _ __

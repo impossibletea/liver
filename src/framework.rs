@@ -165,9 +165,7 @@ impl Model {
         // (_)_| |_|\__,_|_| |_| |_|\___|
 
         let name =
-            config.model.name
-            .get(screen)
-            .map(|n| n.clone())
+            config.model.name.clone()
             .ok_or(format!("No model for index {screen}"))?;
 
         //                _   _
