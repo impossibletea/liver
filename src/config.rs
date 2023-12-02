@@ -36,8 +36,8 @@ pub enum FitConfig {
 #[derive(Serialize, Deserialize)]
 pub struct BgConfig {
     pub variant: BgType,
-    pub color:   Option<[f32; 4]>,
-    pub image:   Option<String>,
+    pub color:   [f32; 4],
+    pub image:   String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -48,14 +48,14 @@ pub enum BgType {
 
 #[derive(Serialize, Deserialize)]
 pub struct ModelConfig {
-    pub name:    Option<Vec<String>>,
+    pub name:    Vec<String>,
     pub path:    String,
     pub motions: MotionConfig,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct MotionConfig {
-    pub open: Option<Vec<(String, String)>>,
+    pub open: Vec<(String, String)>,
     pub idle: Option<(String, String)>,
     pub usr1: Option<(String, String)>,
 }
@@ -70,15 +70,15 @@ impl Default for Config {
                 fit:   FitConfig::Cover,
                 bg:    BgConfig {
                     variant: BgType::Color,
-                    color:   Some([0., 0., 0., 0.]),
-                    image:   Some("".to_string()),
+                    color:   [0., 0., 0., 0.],
+                    image:   "".to_string(),
                 },
             },
             model: ModelConfig {
-                name:    None,
+                name:    Vec::new(),
                 path:    "assets".to_string(),
                 motions: MotionConfig {
-                    open: None,
+                    open: Vec::new(),
                     idle: None,
                     usr1: None,
                 },

@@ -134,9 +134,8 @@ impl Model {
                                    screen,
                                    display)?;
 
-        if let Some(q) = &config.model.motions.open {
-            q.iter().for_each(|(c, m)| model.queue((c, m)).unwrap_or(()));
-        }
+        config.model.motions.open.iter()
+        .for_each(|(c, m)| model.queue((c, m)).unwrap_or(()));
 
         if let Some(effect) =
             model.motions
@@ -166,8 +165,7 @@ impl Model {
         // (_)_| |_|\__,_|_| |_| |_|\___|
 
         let name =
-            config.model.name.clone()
-            .ok_or(format!("No model provided"))?
+            config.model.name
             .get(screen)
             .map(|n| n.clone())
             .ok_or(format!("No model for index {screen}"))?;
