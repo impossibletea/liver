@@ -136,10 +136,7 @@ pub fn cli_args(toml: &mut Config) -> Result<String, Box<dyn Error>>
                 }
             }
             None => {
-                eprintln!("Arguments:");
-                CLI_ARGS.iter()
-                .for_each(|cli| eprintln!("    {cli}"));
-                return Err(format!("Unknown argument: {arg}").into())
+                eprintln!("Unknown argument: {arg}")
             }
         }
     }
