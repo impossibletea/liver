@@ -27,7 +27,7 @@ use cubism::{
         motion::Motion3,
     },
 };
-use crate::config::{Config, constant::*};
+use crate::config::Config;
 
 const BLEND_ADD:    ConstantFlags = ConstantFlags::BLEND_ADDITIVE;
 const BLEND_MULT:   ConstantFlags = ConstantFlags::BLEND_MULTIPLICATIVE;
@@ -175,15 +175,7 @@ impl Model {
         // (_) .__/ \__,_|\__|_| |_|
         //   |_|
 
-        let path =
-            confy::get_configuration_file_path(APP_NAME,
-                                               CONFIG)
-            .map(|mut conf| {
-                conf.pop();
-                conf
-                .join(&config.model.path)
-                .join(&name)
-            })?;
+        let path = expanduser::expanduser(&config.model.path)?;
 
         //                        _      _ _____
         //    _ __ ___   ___   __| | ___| |___ /
@@ -192,7 +184,7 @@ impl Model {
         // (_)_| |_| |_|\___/ \__,_|\___|_|____/
 
         let model3 = {
-            let path = path.join(format!("{name}.model3.json"));
+            let path = path.join(name);
             let file = File::open(path)?;
             Model3::from_reader(file)?
         };
