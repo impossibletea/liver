@@ -191,14 +191,7 @@ fn main() -> Result<(), Box<dyn Error>>
     //  _| | | | | | (_) | (_| |  __/ |
     // (_)_| |_| |_|\___/ \__,_|\___|_|
 
-    let screen_index: usize =
-        env::var("XSCREENSAVER_SAVER_INDEX")
-        .unwrap_or("0".to_string())
-        .parse()
-        .unwrap_or(0);
-
     let mut model = Model::new(&config,
-                               screen_index,
                                &display)?;
 
     //  _ _   _ __ _   _ _ __
