@@ -181,13 +181,8 @@ fn main() -> Result<(), Box<dyn Error>>
     //                         |___/
 
     let background_image = match &config.window.bg.variant {
-        BgType::Image => {
-            let bg =
-                config.window.bg.image.as_ref()
-                .ok_or(Box::from("No image provided"))
-                .and_then(|bg| Background::new(bg, &display))?;
-            Some(bg)
-        }
+        BgType::Image => Some(Background::new(config.window.bg.image.as_str(),
+                                              &display)?),
         BgType::Color => None,
     };
 
@@ -339,9 +334,7 @@ fn main() -> Result<(), Box<dyn Error>>
                         .unwrap_or_else(|e| eprintln!("{e}"))
                     }
                     BgType::Color => {
-                        let c =
-                            config.window.bg.color.as_ref()
-                            .unwrap_or(&[0., 0., 0., 0.]);
+                        let c = config.window.bg.color;
                         frame.clear_color(c[0], c[1], c[2], c[3])
                     }
                 }
