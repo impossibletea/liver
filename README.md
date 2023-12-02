@@ -35,9 +35,13 @@ rusty-ships
 
 ## Configuration
 
-Place your Live2D models and a `config.toml` in `~/.config/rusty-ships/` (or
-wherever the config folder on your system is generated, refer to `confy`
-documentation[^confy]). Config and its default parameters are as follows:
+Place your `config.toml` in `~/.config/rusty-ships/` (or wherever the config
+folder on your system is generated, refer to `confy` documentation[^confy]). 
+
+Command-line arguments are supported. Short description is available via
+`rusty-ships -help`.
+
+Config and its default parameters are as follows:
 
 ```toml
 [window]
@@ -50,7 +54,7 @@ color = [0.0, 0.0, 0.0, 0.0]
 image = ""
 
 [model]
-name = []
+name = ""
 path = "assets"
 [model.motions]
 open = []
@@ -65,6 +69,9 @@ usr1 = ""
 Logical size of initially created window. "Logical" means that your DPI is
 taken into account. I.e. if size is 800x600 with DPI 2 (192 in X11 terms), the
 actual size in pixels will be 1600x1200.
+
+Command line configuration allows specifying size. Omitting `height` results
+in it being equal to `width`
 
 #### Title
 
@@ -92,6 +99,9 @@ transparent background equivalet to the following:
 color = [0.0, 0.0, 0.0, 0.0]
 ```
 
+Command line (unlike config file) allows specifying color as RGBA value. Alpha
+is optional, omitting results in opaque color (`RRGGBBff`).
+
 > [!NOTE]
 > Background image is not affected by `fit` setting and always works as with
 > `Cover` setting.
@@ -100,16 +110,11 @@ color = [0.0, 0.0, 0.0, 0.0]
 
 #### Name, Path
 
-Specifying `path` to resources (may include many models) and a list of `name`s
-of particular models to use inside that directory.
-
-Model index is the `XSCREENSAVER_SAVER_INDEX` environment variable to comply
-with Xsecurelock's spec.
+Specifying `path` to model directory and a `name` of model config file
+(`model3.json) to use inside that directory.
 
 > [!IMPORTANT]
-> Configuration assumes that the `name` is the name of directory inside of
-> `path`, and that the same name is used for `model3.json` file contained
-> inside of that folder.
+> File references in model configuration will be relative to `path`.
 
 #### Motions
 
@@ -159,9 +164,9 @@ idle = ["Idle", "Idle"]
 
 ## Usage
 
-Launch the app with `rusty-ships`. That's it, it does not accept command line
-argumets because I did not want it to. Window with your model should open,
-unless you forgot to set it in configuration.
+Launch the app with `rusty-ships`, optionally provide command line arguments.
+Window with your model should open, unless you forgot to set it in
+configuration.
 
 Playback can be controlled via `rusty-ships-ctl`. The following argumets are
 accepted:
