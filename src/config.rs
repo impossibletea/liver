@@ -6,8 +6,8 @@ pub mod constant {
     pub const APP_NAME:   &'static str = "rusty-ships";
     pub const CONFIG:     &'static str = "config";
 }
+use constant::*;
 
-mod toml;
 mod cli;
 
 //   ____             __ _
@@ -116,7 +116,7 @@ pub struct MotionConfig {
 impl Config {
     pub fn new() -> Result<Config, Box<dyn Error>>
     {
-        let mut config: Config = toml::config_file()?;
+        let mut config: Config = confy::load(APP_NAME, CONFIG)?;
         let _program = cli::cli_args(&mut config)?;
         Ok(config)
     }
