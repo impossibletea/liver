@@ -3,7 +3,7 @@ use std::error::Error;
 use serde::{Serialize, Deserialize};
 
 pub mod constant {
-    pub const APP_NAME:   &'static str = "rusty-ships";
+    pub const APP_NAME:   &'static str = "liver";
     pub const CONFIG:     &'static str = "config";
 }
 use constant::*;
@@ -128,7 +128,7 @@ impl Default for Config {
         Self {
             window: WindowConfig {
                 size:  [800, 600],
-                title: "Rusty Ships".to_string(),
+                title: "Liver".to_string(),
                 fit:   FitConfig::Cover,
                 bg:    BgConfig {
                     variant: BgType::Color,

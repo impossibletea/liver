@@ -5,7 +5,7 @@ use std::fmt::{
     Formatter,
 };
 
-pub const SOCKET_ADDR: &'static str = "/run/user/1000/rusty-ships.sock";
+pub const SOCKET_ADDR: &'static str = "/run/user/1000/liver.sock";
 pub const USAGE:       &'static str =
 "
 Usage:
