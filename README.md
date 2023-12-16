@@ -45,21 +45,29 @@ Config and its default parameters are as follows:
 
 ```toml
 [window]
-size = [800, 600]
-title = "Liver"
-fit = "Cover"
+size = [
+    800,
+    600,
+]
+title = 'Liver'
+fit = 'Cover'
+
 [window.bg]
-variant = "Color"
-color = [0.0, 0.0, 0.0, 0.0]
-image = ""
+variant = 'Color'
+color = [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+]
+image = ''
 
 [model]
-name = ""
-path = "assets"
+path = 'assets'
+
 [model.motions]
 open = []
-idle = ""
-usr1 = ""
+idle = ''
 ```
 
 ### Window
@@ -119,9 +127,7 @@ Specifying `path` to model directory and a `name` of model config file
 #### Motions
 
 Configuration of motions that will be played at the program start (`open`, can
-be an array), a motion fallback (`idle`) when motion queue is empty, and a
-motion set when SIGUSR1 is received (`usr1`, Xsecurelock uses it when
-resetting saver).
+be an array), a motion fallback (`idle`) when motion queue is empty.
 
 Specified as a 2-size array, as Live2D motions have classes. So, for example,
 if your model has the following motion file references:
