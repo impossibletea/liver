@@ -1,19 +1,19 @@
 [package]
-name = "rusty-ships"
+name = "liver"
 version = "0.1.0"
 authors = ["impossibleTea <impossibletea@icloud.com>"]
 edition = "2021"
 description = "Live2D model viewer with support for animation"
-repository = "https://github.com/impossibletea/rusty-ships"
+repository = "https://github.com/impossibletea/liver"
 license = "MIT"
-default-run = "rusty-ships"
+default-run = "liver"
 
 [[bin]]
-name = "rusty-ships"
+name = "liver"
 path = "src/main.rs"
 
 [[bin]]
-name = "rusty-ships-ctl"
+name = "bleed"
 path = "src/ctl.rs"
 
 [dependencies]

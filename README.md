@@ -1,4 +1,4 @@
-# Rusty Ships
+# Liver
 
 ## About
 
@@ -27,26 +27,26 @@ After that it is just as usual for rust projects:
 
 ```bash
 cargo install --path .
-rusty-ships
-ed ~/.config/rusty-ships/config.toml
-rusty-ships
+liver
+ed ~/.config/liver/config.toml
+liver
 # Window should appear
 ```
 
 ## Configuration
 
-Place your `config.toml` in `~/.config/rusty-ships/` (or wherever the config
-folder on your system is generated, refer to `confy` documentation[^confy]). 
+Place your `config.toml` in `~/.config/liver/` (or wherever the config folder
+on your system is generated, refer to `confy` documentation[^confy]). 
 
 Command-line arguments are supported. Short description is available via
-`rusty-ships -help`.
+`liver -help`.
 
 Config and its default parameters are as follows:
 
 ```toml
 [window]
 size = [800, 600]
-title = "Rusty Ships"
+title = "Liver"
 fit = "Cover"
 [window.bg]
 variant = "Color"
@@ -164,12 +164,10 @@ idle = ["Idle", "Idle"]
 
 ## Usage
 
-Launch the app with `rusty-ships`, optionally provide command line arguments.
-Window with your model should open, unless you forgot to set it in
-configuration.
+Launch the app with `liver`, optionally provide command line arguments. Window
+with your model should open, unless you forgot to set it in configuration.
 
-Playback can be controlled via `rusty-ships-ctl`. The following argumets are
-accepted:
+Playback can be controlled via `bleed`. The following argumets are accepted:
 
 * `set [class] <motion>`: Sets the motion from the class with that name, if
   available. Class can be omitted, in that case it will be treated as `""`
@@ -185,7 +183,7 @@ accepted:
 
 Xsecurelock[^xsl] is supported. Appropriate mode is launched based on a
 presence of `XSCREENSAVER_WINDOW` environment variable. Symlink app to the
-appropriate location with appropriate name (e.g. `saver_ships`), and it should
+appropriate location with appropriate name (e.g. `saver_liver`), and it should
 work automagically.
 
 [^live2d]: <https://www.live2d.com/en/>
