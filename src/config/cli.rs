@@ -75,12 +75,6 @@ const CLI_ARGS: &[Cli] = &[
         act:   cli_motion_idle,
     },
     Cli {
-        name:  "-motion-usr1",
-        help:  "ID of model motion to play on receiving SIGUSR1",
-        usage: "<[class:]motion>",
-        act:   cli_motion_usr1,
-    },
-    Cli {
         name:  "-help",
         help:  "Show this help message and exit",
         usage: "",
@@ -399,34 +393,6 @@ fn cli_motion_idle(c: &mut Config,
     };
 
     c.model.motions.idle = Some((class, id));
-
-    Ok(())
-}
-
-//                        _   _                                  _
-//  _ _   _ __ ___   ___ | |_(_) ___  _ __  ___   _   _ ___ _ __/ |
-// (_|_) | '_ ` _ \ / _ \| __| |/ _ \| '_ \/ __| | | | / __| '__| |
-//  _ _  | | | | | | (_) | |_| | (_) | | | \__ \ | |_| \__ \ |  | |
-// (_|_) |_| |_| |_|\___/ \__|_|\___/|_| |_|___/  \__,_|___/_|  |_|
-
-fn cli_motion_usr1(c: &mut Config,
-                         a: &mut Args) -> Result<(), Box<dyn Error>>
-{
-    let motion =
-        a.next()
-        .ok_or("No model SIGUSR1 motion provided")?;
-
-    let mut split = motion.rsplit(':');
-    let id =
-        split.next()
-        .expect("motion")
-        .to_string();
-    let class = match split.next() {
-        Some(c) => c.to_string(),
-        None    => "".to_string()
-    };
-
-    c.model.motions.usr1 = Some((class, id));
 
     Ok(())
 }
