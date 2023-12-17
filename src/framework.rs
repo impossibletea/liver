@@ -9,7 +9,6 @@ use glium::{
     Blend,
     Surface,
     uniform,
-    DrawParameters,
     backend::Facade,
     BlendingFunction,
     implement_vertex,
@@ -18,6 +17,7 @@ use glium::{
     LinearBlendingFactor as F,
     index::{IndexBuffer, PrimitiveType},
     texture::{SrgbTexture2d, RawImage2d},
+    draw_parameters::{DrawParameters, Stencil, StencilTest, StencilOperation},
 };
 use cubism::{
     motion::Motion,
@@ -111,6 +111,7 @@ struct Drawable {
     visible:       bool,
     blend:         Blend,
     order:         i32,
+    mask_inverted: bool,
 }
 
 //  __  __           _      _
@@ -354,6 +355,64 @@ impl Model {
 
         while let Some(d) = iter.next() {
             let md = self.model.drawable_at(d.index);
+
+            //                      _
+            //  _ __ ___   __ _ ___| | __
+            // | '_ ` _ \ / _` / __| |/ /
+            // | | | | | | (_| \__ \   <
+            // |_| |_| |_|\__,_|___/_|\_\
+
+            frame.clear_stencil(0);
+            let masks = md.masks;
+            if !masks.is_empty() {
+                let mut masks = masks.iter();
+
+                while let Some(m) = masks.next() {
+                    let find =
+                        drawables.iter()
+                        .find(|d| d.index as i32 == *m);
+
+                    let d = match find {
+                        Some(s) => s,
+                        None    => {
+                            eprintln!("Failed to look up mask {m}");
+                            continue
+                        }
+                    };
+
+                    let uniforms = uniform!{
+                        size:    self.canvas.size,
+                        origin:  self.canvas.origin,
+                        scale:   self.canvas.scale,
+                        opacity: 1. as f32,
+                        tex:     &self.textures[md.texture_index as usize],
+                        aspect:  aspect,
+                    };
+
+                    let op = StencilOperation::Replace;
+                    let params = DrawParameters {
+                        color_mask: (false, false, false, false),
+                        stencil:    Stencil {
+                            fail_operation_clockwise:                    op,
+                            pass_depth_fail_operation_clockwise:         op,
+                            depth_pass_operation_clockwise:              op,
+                            fail_operation_counter_clockwise:            op,
+                            pass_depth_fail_operation_counter_clockwise: op,
+                            depth_pass_operation_counter_clockwise:      op,
+                            reference_value_clockwise:                   1,
+                            reference_value_counter_clockwise:           1,
+                            .. Default::default()
+                        },
+                        .. Default::default()
+                    };
+
+                    frame.draw(&d.vertex_buffer,
+                               &d.index_buffer,
+                               program,
+                               &uniforms,
+                               &params)?;
+                }
+            }
 
             //      _
             //   __| |_ __ __ ___      __
@@ -749,6 +808,14 @@ impl Drawable {
 
         let order = drawable.render_order;
 
+        //                        _      _                     _           _
+        //    _ __ ___   __ _ ___| | __ (_)_ ____   _____ _ __| |_ ___  __| |
+        //   | '_ ` _ \ / _` / __| |/ / | | '_ \ \ / / _ \ '__| __/ _ \/ _` |
+        //  _| | | | | | (_| \__ \   <  | | | | \ V /  __/ |  | ||  __/ (_| |
+        // (_)_| |_| |_|\__,_|___/_|\_\ |_|_| |_|\_/ \___|_|   \__\___|\__,_|
+
+        let mask_inverted = constant_flags.contains(MASK_INV);
+
         //           _
         //  _ __ ___| |_ _   _ _ __ _ __
         // | '__/ _ \ __| | | | '__| '_ \
@@ -762,6 +829,7 @@ impl Drawable {
             visible,
             blend,
             order,
+            mask_inverted,
         })
     }
 
