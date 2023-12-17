@@ -10,9 +10,9 @@ use glium::{
     Surface,
     uniform,
     DrawParameters,
+    backend::Facade,
     BlendingFunction,
     implement_vertex,
-    backend::Facade,
     program::Program,
     vertex::VertexBuffer,
     LinearBlendingFactor as F,
@@ -30,15 +30,14 @@ use cubism::{
 };
 use crate::config::Config;
 
-const BLEND_ADD:    ConstantFlags = ConstantFlags::BLEND_ADDITIVE;
-const BLEND_MULT:   ConstantFlags = ConstantFlags::BLEND_MULTIPLICATIVE;
-//const MASK_INV:     ConstantFlags = ConstantFlags::IS_INVERTED_MASK;
+const BLEND_ADD:  ConstantFlags = ConstantFlags::BLEND_ADDITIVE;
+const BLEND_MULT: ConstantFlags = ConstantFlags::BLEND_MULTIPLICATIVE;
+const MASK_INV:   ConstantFlags = ConstantFlags::IS_INVERTED_MASK;
 
-const VISIBLE:          DynamicFlags = DynamicFlags::IS_VISIBLE;
-const VISIBLE_CHANGED:  DynamicFlags = DynamicFlags::VISIBILITY_CHANGED;
-const OPACITY_CHANGED:  DynamicFlags = DynamicFlags::OPACITY_CHANGED;
-const ORDER_CHANGED:    DynamicFlags = DynamicFlags::RENDER_ORDER_CHANGED;
-const VERTICES_CHANGED: DynamicFlags = DynamicFlags::VERTEX_POSITIONS_CHANGED;
+const VIS:           DynamicFlags = DynamicFlags::IS_VISIBLE;
+const VIS_CHANGED:   DynamicFlags = DynamicFlags::VISIBILITY_CHANGED;
+const ORDER_CHANGED: DynamicFlags = DynamicFlags::RENDER_ORDER_CHANGED;
+const VERTS_CHANGED: DynamicFlags = DynamicFlags::VERTEX_POSITIONS_CHANGED;
 
 //  __  __           _      _
 // |  \/  | ___   __| | ___| |
@@ -106,12 +105,11 @@ struct CanvasInfo {
 // |____/|_|  \__,_| \_/\_/ \__,_|_.__/|_|\___|
 
 struct Drawable {
+    index:         usize,
     vertex_buffer: VertexBuffer<Vert>,
     index_buffer:  IndexBuffer<u16>,
     visible:       bool,
-    opacity:       f32,
     blend:         Blend,
-    texture_index: i32,
     order:         i32,
 }
 
@@ -349,18 +347,26 @@ impl Model {
     where T: Surface
     {
         let drawables = self.ordered();
-        let mut drawables =
+        let mut iter =
             drawables
             .iter()
             .filter(|d| d.visible);
 
-        while let Some(d) = drawables.next() {
+        while let Some(d) = iter.next() {
+            let md = self.model.drawable_at(d.index);
+
+            //      _
+            //   __| |_ __ __ ___      __
+            //  / _` | '__/ _` \ \ /\ / /
+            // | (_| | | | (_| |\ V  V /
+            //  \__,_|_|  \__,_| \_/\_/
+
             let uniforms = uniform!{
                 size:    self.canvas.size,
                 origin:  self.canvas.origin,
                 scale:   self.canvas.scale,
-                opacity: d.opacity,
-                tex:     &self.textures[d.texture_index as usize],
+                opacity: md.opacity,
+                tex:     &self.textures[md.texture_index as usize],
                 aspect:  aspect,
             };
 
@@ -604,11 +610,11 @@ impl Model {
                          next.1.as_str()))
     }
 
-    //                       _           _
-    //  _ _   ___  ___  _ __| |_ ___  __| |
-    // (_|_) / __|/ _ \| '__| __/ _ \/ _` |
-    //  _ _  \__ \ (_) | |  | ||  __/ (_| |
-    // (_|_) |___/\___/|_|   \__\___|\__,_|
+    //                      _                   _
+    //  _ _    ___  _ __ __| | ___ _ __ ___  __| |
+    // (_|_)  / _ \| '__/ _` |/ _ \ '__/ _ \/ _` |
+    //  _ _  | (_) | | | (_| |  __/ | |  __/ (_| |
+    // (_|_)  \___/|_|  \__,_|\___|_|  \___|\__,_|
 
     fn ordered(&self) -> Vec<&Drawable>
     {
@@ -646,6 +652,14 @@ impl Drawable {
         let constant_flags = drawable.constant_flags;
         let dynamic_flags = drawable.dynamic_flags;
 
+        //    _           _
+        //   (_)_ __   __| | _____  __
+        //   | | '_ \ / _` |/ _ \ \/ /
+        //  _| | | | | (_| |  __/>  <
+        // (_)_|_| |_|\__,_|\___/_/\_\
+
+        let index = drawable.index;
+
         //                 _              _            __  __
         // __   _____ _ __| |_ _____  __ | |__  _   _ / _|/ _| ___ _ __
         // \ \ / / _ \ '__| __/ _ \ \/ / | '_ \| | | | |_| |_ / _ \ '__|
@@ -680,16 +694,7 @@ impl Drawable {
         //  \ V /| \__ \ | |_) | |  __/
         // (_)_/ |_|___/_|_.__/|_|\___|
 
-        let visible = dynamic_flags.contains(VISIBLE);
-
-        //                          _ _
-        //    ___  _ __   __ _  ___(_) |_ _   _
-        //   / _ \| '_ \ / _` |/ __| | __| | | |
-        //  | (_) | |_) | (_| | (__| | |_| |_| |
-        // (_)___/| .__/ \__,_|\___|_|\__|\__, |
-        //        |_|                     |___/
-
-        let opacity = drawable.opacity;
+        let visible = dynamic_flags.contains(VIS);
 
         //    _     _                _
         //   | |__ | | ___ _ __   __| |
@@ -736,14 +741,6 @@ impl Drawable {
             }
         };
 
-        //   _            _                    _           _
-        //  | |_ _____  _| |_ _   _ _ __ ___  (_)_ __   __| | _____  __
-        //  | __/ _ \ \/ / __| | | | '__/ _ \ | | '_ \ / _` |/ _ \ \/ /
-        //  | ||  __/>  <| |_| |_| | | |  __/ | | | | | (_| |  __/>  <
-        // (_)__\___/_/\_\\__|\__,_|_|  \___| |_|_| |_|\__,_|\___/_/\_\
-
-        let texture_index = drawable.texture_index;
-
         //                       _                           _
         //    _ __ ___ _ __   __| | ___ _ __    ___  _ __ __| | ___ _ __
         //   | '__/ _ \ '_ \ / _` |/ _ \ '__|  / _ \| '__/ _` |/ _ \ '__|
@@ -759,12 +756,11 @@ impl Drawable {
         // |_|  \___|\__|\__,_|_|  |_| |_|
 
         Ok(Drawable {
+            index,
             vertex_buffer,
             index_buffer,
             visible,
-            opacity,
             blend,
-            texture_index,
             order,
         })
     }
@@ -781,7 +777,7 @@ impl Drawable {
     {
         let flags = drawable.dynamic_flags;
 
-        if flags.contains(VERTICES_CHANGED) {
+        if flags.contains(VERTS_CHANGED) {
             let vertices: Vec<_> =
                 zip(drawable.vertex_positions,
                     drawable.vertex_uvs)
@@ -792,17 +788,8 @@ impl Drawable {
             self.vertex_buffer.write(&vertices);
         }
 
-        if flags.contains(OPACITY_CHANGED) {
-            self.opacity = drawable.opacity;
-        }
-
-        if flags.contains(ORDER_CHANGED) {
-            self.order = drawable.render_order;
-        }
-
-        if flags.contains(VISIBLE_CHANGED) {
-            self.visible = flags.contains(VISIBLE);
-        }
+        if flags.contains(ORDER_CHANGED) {self.order = drawable.render_order;}
+        if flags.contains(VIS_CHANGED)   {self.visible = flags.contains(VIS);}
     }
 }
 

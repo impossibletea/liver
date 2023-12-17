@@ -288,11 +288,10 @@ fn main() -> Result<(), Box<dyn Error>>
                         let bg =
                             background_image.as_ref()
                             .expect("image to be here");
-                        let op: f32 = 1.;
                         let uniforms = uniform!{
                             tex: &bg.texture,
                             aspect: bg_aspect,
-                            opacity: op,
+                            opacity: 1. as f32,
                         };
 
                         frame.draw(&bg.vertex_buffer,
