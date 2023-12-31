@@ -1,4 +1,5 @@
 use std::{
+    rc::Rc,
     fs::File,
     iter::zip,
     error::Error,
@@ -75,13 +76,15 @@ struct MotionData {
 // | |_| | |_| |  __/ |_| |  __/
 //  \__\_\\__,_|\___|\__,_|\___|
 
+type Name = Rc<String>;
+
 struct Queue {
-    lineup:    VecDeque<(String, String)>,
-    current:   Option<(String, String)>,
+    lineup:    VecDeque<(Name, Name)>,
+    current:   Option<(Name, Name)>,
     duration:  f32,
     elapsed:   f32,
     is_paused: bool,
-    idle:      (String, String),
+    idle:      (Name, Name),
 }
 
 //   ____                          ___        __
@@ -254,9 +257,10 @@ impl Model {
         //      |_|
 
         let idle = match config.model.motions.idle.clone() {
-            Some(m) => m,
-            None    => ("".to_string(),
-                        "idle".to_string())
+            Some((c, m)) => (Rc::new(c),
+                             Rc::new(m)),
+            None         => (Rc::new("".to_string()),
+                             Rc::new("idle".to_string()))
         };
 
         let queue = Queue {
@@ -392,13 +396,13 @@ impl Model {
         if queue.elapsed >= queue.duration {self.next();}
 
         let current =
-            &self.queue.current.clone()
+            self.queue.current.as_ref()
             .ok_or("No motion set")?;
 
         let motion_data =
             &mut self.motions
-            .get_mut(&current.0)
-            .and_then(|class| class.get_mut(&current.1))
+            .get_mut(current.0.as_str())
+            .and_then(|class| class.get_mut(current.1.as_str()))
             .ok_or(format!("No motion {} in {}", current.1, current.0))?;
 
         let motion = &mut motion_data.motion;
@@ -436,14 +440,14 @@ impl Model {
     pub fn play(&mut self) -> Option<()>
     {
         self.queue.is_paused = false;
-        let current = match &self.queue.current {
+        let current = match self.queue.current.as_ref() {
             Some(c) => c,
             None    => return None
         };
 
         self.motions
-        .get_mut(&current.0)
-        .and_then(|c| c.get_mut(&current.1))
+        .get_mut(current.0.as_str())
+        .and_then(|c| c.get_mut(current.1.as_str()))
         .map(|m| m.motion.play())
     }
 
@@ -456,14 +460,14 @@ impl Model {
     pub fn pause(&mut self) -> Option<()>
     {
         self.queue.is_paused = true;
-        let current = match &self.queue.current {
+        let current = match self.queue.current.as_ref() {
             Some(c) => c,
             None    => return None
         };
 
         self.motions
-        .get_mut(&current.0)
-        .and_then(|c| c.get_mut(&current.1))
+        .get_mut(current.0.as_str())
+        .and_then(|c| c.get_mut(current.1.as_str()))
         .map(|m| m.motion.pause())
     }
 
@@ -490,14 +494,14 @@ impl Model {
     {
         self.queue.is_paused = true;
         self.queue.elapsed = 0.;
-        let current = match &self.queue.current {
+        let current = match self.queue.current.as_ref() {
             Some(c) => c,
             None    => return None
         };
 
         self.motions
-        .get_mut(&current.0)
-        .and_then(|c| c.get_mut(&current.1))
+        .get_mut(current.0.as_str())
+        .and_then(|c| c.get_mut(current.1.as_str()))
         .map(|m| m.motion.stop())
     }
 
@@ -525,8 +529,8 @@ impl Model {
 
         motion_data.motion.set_looped(motion_data.looped);
 
-        self.queue.current = Some((new.0.to_string(),
-                                   new.1.to_string()));
+        self.queue.current = Some((Rc::new(new.0.to_string()),
+                                   Rc::new(new.1.to_string())));
         self.queue.duration = motion_data.duration;
         self.queue.elapsed = 0.;
         self.restart();
@@ -570,8 +574,8 @@ impl Model {
         if !has_motion {return None}
 
         if self.queue.current.is_some() {
-            self.queue.lineup.push_back((new.0.to_string(),
-                                         new.1.to_string()));
+            self.queue.lineup.push_back((Rc::new(new.0.to_string()),
+                                         Rc::new(new.1.to_string())));
             eprintln!("Queued motion {} from {}", new.1, new.0);
         } else {
             self.set_motion(new)?;
@@ -589,7 +593,11 @@ impl Model {
     {
         let next = match self.queue.lineup.pop_front() {
             Some(m) => m,
-            None    => self.queue.idle.clone()
+            None    => {
+                let t = &self.queue.idle;
+                (t.0.clone(),
+                 t.1.clone())
+            }
         };
 
         self.set_motion((next.0.as_str(),
