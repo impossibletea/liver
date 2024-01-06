@@ -429,8 +429,21 @@ impl Model {
                 aspect:  aspect,
             };
 
+            let stencil_test = if masks.is_empty() {
+                StencilTest::AlwaysPass
+            } else {
+                let mask = if d.mask_inverted {0} else {1};
+                StencilTest::IfEqual{mask}
+            };
             let params = &DrawParameters {
-                blend: d.blend,
+                blend:   d.blend,
+                stencil: Stencil {
+                    test_clockwise:                    stencil_test,
+                    test_counter_clockwise:            stencil_test,
+                    reference_value_clockwise:         1,
+                    reference_value_counter_clockwise: 1,
+                    .. Default::default()
+                },
                 .. Default::default()
             };
 
