@@ -27,10 +27,7 @@ After that it is just as usual for rust projects:
 
 ```bash
 cargo install --path .
-liver
-ed ~/.config/liver/config.toml
-liver
-# Window should appear
+liver waifu.model3.json
 ```
 
 ## Configuration
@@ -62,8 +59,9 @@ color = [
 ]
 image = ''
 
+# Toml does not allow null, but the idea is that there is no default file
 [model]
-path = 'assets'
+file = ''
 
 [model.motions]
 open = []
@@ -116,13 +114,9 @@ is optional, omitting results in opaque color (`RRGGBBff`).
 
 ### Model
 
-#### Name, Path
+#### File
 
-Specifying `path` to model directory and a `name` of model config file
-(`model3.json) to use inside that directory.
-
-> [!IMPORTANT]
-> File references in model configuration will be relative to `path`.
+Specifying `file` of model config file (`model3.json) to use.
 
 #### Motions
 

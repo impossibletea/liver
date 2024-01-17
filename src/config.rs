@@ -87,8 +87,7 @@ pub enum BgType {
 
 #[derive(Serialize, Deserialize)]
 pub struct ModelConfig {
-    pub name:    Option<String>,
-    pub path:    String,
+    pub file:    Option<String>,
     pub motions: MotionConfig,
 }
 
@@ -136,8 +135,7 @@ impl Default for Config {
                 },
             },
             model: ModelConfig {
-                name:    None,
-                path:    "assets".to_string(),
+                file:    None,
                 motions: MotionConfig {
                     open: Vec::new(),
                     idle: None,

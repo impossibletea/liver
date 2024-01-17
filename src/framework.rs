@@ -158,15 +158,6 @@ impl Model {
     where T: Facade + ?Sized
     {
 
-        //    _ __   __ _ _ __ ___   ___
-        //   | '_ \ / _` | '_ ` _ \ / _ \
-        //  _| | | | (_| | | | | | |  __/
-        // (_)_| |_|\__,_|_| |_| |_|\___|
-
-        let name =
-            config.model.name.clone()
-            .ok_or("No model provided")?;
-
         //                _   _
         //    _ __   __ _| |_| |__
         //   | '_ \ / _` | __| '_ \
@@ -174,7 +165,13 @@ impl Model {
         // (_) .__/ \__,_|\__|_| |_|
         //   |_|
 
-        let path = expanduser::expanduser(&config.model.path)?;
+        let mut path = {
+            let file =
+                config.model.file.as_ref()
+                .ok_or("No model provided")?;
+
+            expanduser::expanduser(&file)?
+        };
 
         //                        _      _ _____
         //    _ __ ___   ___   __| | ___| |___ /
@@ -183,10 +180,11 @@ impl Model {
         // (_)_| |_| |_|\___/ \__,_|\___|_|____/
 
         let model3 = {
-            let path = path.join(name);
-            let file = File::open(path)?;
+            let file = File::open(&path)?;
             Model3::from_reader(file)?
         };
+
+        if !path.pop() {panic!("How")};
 
         //                        _      _
         //    _ __ ___   ___   __| | ___| |

@@ -51,18 +51,6 @@ const CLI_ARGS: &[Cli] = &[
         act:   cli_bg_image_path,
     },
     Cli {
-        name:  "-name",
-        help:  "Model configuration file (*.model3.json) in `model-path`",
-        usage: "<file>",
-        act:   cli_name,
-    },
-    Cli {
-        name:  "-path",
-        help:  "Path to model assets",
-        usage: "<path>",
-        act:   cli_path,
-    },
-    Cli {
         name:  "-motions-open",
         help:  "IDs of model motions to play on launch",
         usage: "<[class1:]motion1>,..",
@@ -130,7 +118,11 @@ pub fn cli_args(toml: &mut Config) -> Result<String, Box<dyn Error>>
                 }
             }
             None => {
-                eprintln!("Unknown argument: {arg}")
+                if arg.starts_with("-") {
+                    eprintln!("Argument {arg} not supported");
+                } else {
+                    toml.model.file = Some(arg);
+                }
             }
         }
     }
@@ -150,9 +142,9 @@ fn cli_help(_: &mut Config,
 {
     println!("");
     println!("Usage:");
-    println!("    {} [arguments]", APP_NAME);
+    println!("    {} [flags] [file.model3.json]", APP_NAME);
     println!("");
-    println!("Arguments:");
+    println!("Flags:");
     CLI_ARGS.iter()
     .for_each(|cli| println!("    {cli}"));
     println!("");
@@ -300,37 +292,6 @@ fn cli_bg_image_path(c: &mut Config,
     c.window.bg.image =
         a.next()
         .ok_or("No image path provided")?;
-
-    Ok(())
-}
-
-
-//  _ _   _ __   __ _ _ __ ___   ___
-// (_|_) | '_ \ / _` | '_ ` _ \ / _ \
-//  _ _  | | | | (_| | | | | | |  __/
-// (_|_) |_| |_|\__,_|_| |_| |_|\___|
-
-fn cli_name(c: &mut Config,
-                  a: &mut Args) -> Result<(), Box<dyn Error>>
-{
-    c.model.name = a.next();
-
-    Ok(())
-}
-
-//                    _   _
-//  _ _   _ __   __ _| |_| |__
-// (_|_) | '_ \ / _` | __| '_ \
-//  _ _  | |_) | (_| | |_| | | |
-// (_|_) | .__/ \__,_|\__|_| |_|
-//       |_|
-
-fn cli_path(c: &mut Config,
-                  a: &mut Args) -> Result<(), Box<dyn Error>>
-{
-    c.model.path =
-        a.next()
-        .ok_or("No model path provided")?;
 
     Ok(())
 }
