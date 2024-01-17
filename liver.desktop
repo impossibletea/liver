@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Liver
+Comment=Live2D model viewer with support for animation
+Exec=liver %f

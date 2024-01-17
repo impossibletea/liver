@@ -16,7 +16,7 @@ Made possible with incredible wrapper[^cubism-rs] for Cubism SDK.
 >   wrapper did not parse them in `motion_references`
 > * Restricted Beziers in `motion3.json` files
 
-## Building
+## Installation
 
 First refer to `cubism-rs` [documentation](res/cubism-rs/README.md) to place
 Live2DCubismCore library appropriately. I added a helper [file](.cargo/config)
@@ -28,6 +28,12 @@ After that it is just as usual for rust projects:
 ```bash
 cargo install --path .
 liver waifu.model3.json
+```
+
+Optionally install provided `liver.desktop` file:
+
+```bash
+desktop-file-install --dir=$HOME/.local/share/applications ~/liver.desktop
 ```
 
 ## Configuration
