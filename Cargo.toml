@@ -1,6 +1,6 @@
 [package]
 name = "liver"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["impossibleTea <impossibletea@icloud.com>"]
 edition = "2021"
 description = "Live2D model viewer with support for animation"
