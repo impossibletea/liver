@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>>
             "set"    => {
                 let first =
                     args.next()
-                    .ok_or(format!("What motion to set?"))?;
+                    .ok_or("What motion to set?".to_string())?;
 
                 let result = match args.next() {
                     Some(second) => (first,
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>>
             "queue"  => {
                 let first =
                     args.next()
-                    .ok_or(format!("What motion to set?"))?;
+                    .ok_or("What motion to set?".to_string())?;
 
                 let result = match args.next() {
                     Some(second) => (first,

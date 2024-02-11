@@ -79,7 +79,7 @@ impl XSecureLockBack {
     {
         let xconn =
             XConnection::new(None)
-            .map(|x| Arc::new(x))?;
+            .map(Arc::new)?;
         let context = unsafe {
             let context =
                 ContextBuilder::new()

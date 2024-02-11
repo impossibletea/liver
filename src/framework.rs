@@ -175,7 +175,7 @@ impl Model {
                 config.model.file.as_ref()
                 .ok_or("No model provided")?;
 
-            expanduser::expanduser(&file)?
+            expanduser::expanduser(file)?
         };
 
         //                        _      _ _____
@@ -208,18 +208,16 @@ impl Model {
 
         let mut motions = HashMap::new();
 
-        let mut motion_classes = model3.file_references.motions.iter();
-        while let Some((class_name, c)) = motion_classes.next() {
+        for (class_name, c) in model3.file_references.motions {
             let mut class = HashMap::new();
             eprintln!("Adding motions from class \"{}\":", class_name);
 
-            let mut motion_files = c.iter();
-            while let Some(m) = motion_files.next() {
+            for m in c {
                 let name =
                     m.file.file_name()
                     .and_then(|f| f.to_str())
                     .and_then(|s| s.split('.').next())
-                    .map(|s| s.to_string());
+                    .map(String::from);
 
                 let n = match name {
                     Some(s) => s,
@@ -297,9 +295,8 @@ impl Model {
 
         let mut textures = Vec::new();
 
-        let mut iter = model3.file_references.textures.iter();
-        while let Some(r) = iter.next() {
-            let t_path = path.join(&r);
+        for r in model3.file_references.textures {
+            let t_path = path.join(r);
             let image =
                 image::open(&t_path)?
                 .to_rgba8();
@@ -448,7 +445,7 @@ impl Model {
                        &d.index_buffer,
                        &programs[d.blend.0 as usize],
                        &uniforms,
-                       &params)?;
+                       params)?;
         }
 
         Ok(())
