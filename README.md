@@ -49,24 +49,14 @@ Config and its default parameters are as follows:
 
 ```toml
 [window]
-size = [
-    800,
-    600,
-]
+size = [800, 600]
 title = 'Liver'
 fit = 'Cover'
 
 [window.bg]
 variant = 'Color'
-color = [
-    0.0,
-    0.0,
-    0.0,
-    0.0,
-]
+color = [0.0, 0.0, 0.0, 0.0]
 image = ''
-
-# Toml does not allow null, but the idea is that there is no default file
 
 [model]
 file = ''
