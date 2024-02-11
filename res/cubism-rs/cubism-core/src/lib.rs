@@ -53,5 +53,7 @@ bitflags::bitflags! {
         const RENDER_ORDER_CHANGED = ffi::csmRenderOrderDidChange;
         /// The drawable's vertex positions changed since the last update.
         const VERTEX_POSITIONS_CHANGED = ffi::csmVertexPositionsDidChange;
+        /// The drawable's blend color changed since the last update.
+        const BLEND_COLOR_CHANGED = ffi::csmBlendColorDidChange;
     }
 }

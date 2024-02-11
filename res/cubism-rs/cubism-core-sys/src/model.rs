@@ -1,6 +1,6 @@
 use std::os::raw::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void};
 
-use crate::{csmVector2, moc::csmMoc};
+use crate::{csmVector2, csmVector4, moc::csmMoc};
 
 pub const csmAlignofModel: usize = 16;
 
@@ -15,6 +15,7 @@ pub const csmOpacityDidChange: csmFlags = 1 << 2;
 pub const csmDrawOrderDidChange: csmFlags = 1 << 3;
 pub const csmRenderOrderDidChange: csmFlags = 1 << 4;
 pub const csmVertexPositionsDidChange: csmFlags = 1 << 5;
+pub const csmBlendColorDidChange: csmFlags = 1 << 6;
 
 pub type csmFlags = c_uchar;
 
@@ -67,6 +68,8 @@ extern "C" {
     pub fn csmGetDrawableIndexCounts(model: *const csmModel) -> *const c_int;
     pub fn csmGetDrawableIndices(model: *const csmModel) -> *mut *const c_ushort;
     pub fn csmResetDrawableDynamicFlags(model: *mut csmModel);
+    pub fn csmGetDrawableMultiplyColors(model: *mut csmModel) -> *mut *const csmVector4;
+    pub fn csmGetDrawableScreenColors(model: *mut csmModel) -> *mut *const csmVector4;
 }
 
 #[test]

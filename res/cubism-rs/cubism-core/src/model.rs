@@ -174,6 +174,8 @@ impl Model {
                 masks: self.drawable_masks().get_unchecked(idx),
                 constant_flags: *self.drawable_constant_flags().get_unchecked(idx),
                 dynamic_flags: *self.drawable_dynamic_flags().get_unchecked(idx),
+                multiply_color: self.drawable_multiply_colors().get_unchecked(idx),
+                screen_color: self.drawable_screen_colors().get_unchecked(idx),
             }
         }
     }
@@ -329,6 +331,28 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableDynamicFlags(self.as_ptr()) as *const DynamicFlags,
+                self.drawable_count(),
+            )
+        }
+    }
+
+    /// Returns the drawable multiply colors.
+    #[inline]
+    pub fn drawable_multiply_colors(&self) -> &[[f32; 4]] {
+        unsafe {
+            slice::from_raw_parts(
+                ffi::csmGetDrawableMultiplyColors(self.as_ptr()) as *const _,
+                self.drawable_count(),
+            )
+        }
+    }
+
+    /// Returns the drawable screen colors.
+    #[inline]
+    pub fn drawable_screen_colors(&self) -> &[[f32; 4]] {
+        unsafe {
+            slice::from_raw_parts(
+                ffi::csmGetDrawableScreenColors(self.as_ptr()) as *const _,
                 self.drawable_count(),
             )
         }
@@ -528,6 +552,10 @@ pub struct Drawable<'model> {
     pub constant_flags: ConstantFlags,
     /// The drawable's dynamic drawing flags.
     pub dynamic_flags: DynamicFlags,
+    /// The drawable's multiply color
+    pub multiply_color: &'model [f32; 4],
+    /// The drawable's screen color
+    pub screen_color: &'model [f32; 4],
 }
 
 impl<'model> Drawable<'model> {
