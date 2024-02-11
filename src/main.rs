@@ -148,20 +148,8 @@ fn main() -> Result<(), Box<dyn Error>>
 
     let prg_normal =
         Program::from_source(&display,
-                             include_str!("shaders/normal_vert.glsl"),
-                             include_str!("shaders/normal_frag.glsl"),
-                             None)?;
-
-    let prg_add =
-        Program::from_source(&display,
-                             include_str!("shaders/add_vert.glsl"),
-                             include_str!("shaders/add_frag.glsl"),
-                             None)?;
-
-    let prg_multiply =
-        Program::from_source(&display,
-                             include_str!("shaders/mult_vert.glsl"),
-                             include_str!("shaders/mult_frag.glsl"),
+                             include_str!("shaders/vert.glsl"),
+                             include_str!("shaders/frag.glsl"),
                              None)?;
 
     // Ideally I'd like to initialize array with Rc::new_zeroed() and then fill
@@ -172,8 +160,6 @@ fn main() -> Result<(), Box<dyn Error>>
         Rc::new(prg_background),
         Rc::new(prg_mask),
         Rc::new(prg_normal),
-        Rc::new(prg_add),
-        Rc::new(prg_multiply),
     ];
 
     //    _                _                                   _
@@ -370,8 +356,6 @@ enum ProgramVariant {
     Background = 0,
     Mask,
     BlendNormal,
-    BlendAdd,
-    BlendMultiply,
 
     Counter
 }

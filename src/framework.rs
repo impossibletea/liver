@@ -41,6 +41,7 @@ const VIS:           DynamicFlags = DynamicFlags::IS_VISIBLE;
 const VIS_CHANGED:   DynamicFlags = DynamicFlags::VISIBILITY_CHANGED;
 const ORDER_CHANGED: DynamicFlags = DynamicFlags::RENDER_ORDER_CHANGED;
 const VERTS_CHANGED: DynamicFlags = DynamicFlags::VERTEX_POSITIONS_CHANGED;
+const BLEND_CHANGED: DynamicFlags = DynamicFlags::BLEND_COLOR_CHANGED;
 
 //  __  __           _      _
 // |  \/  | ___   __| | ___| |
@@ -107,16 +108,27 @@ struct CanvasInfo {
 // | |_| | | | (_| |\ V  V / (_| | |_) | |  __/
 // |____/|_|  \__,_| \_/\_/ \__,_|_.__/|_|\___|
 
-type Composition = (PV, Blend);
-
 struct Drawable {
     index:         usize,
     vertex_buffer: VertexBuffer<Vert>,
     index_buffer:  IndexBuffer<u16>,
     visible:       bool,
-    blend:         Composition,
+    compose:       Composition,
     order:         i32,
     mask_inverted: bool,
+}
+
+//   ____                                _ _   _
+//  / ___|___  _ __ ___  _ __   ___  ___(_) |_(_) ___  _ __
+// | |   / _ \| '_ ` _ \| '_ \ / _ \/ __| | __| |/ _ \| '_ \
+// | |__| (_) | | | | | | |_) | (_) \__ \ | |_| | (_) | | | |
+//  \____\___/|_| |_| |_| .__/ \___/|___/_|\__|_|\___/|_| |_|
+//                      |_|
+
+struct Composition {
+    blend:  Blend,
+    mult:   [f32; 4],
+    screen: [f32; 4],
 }
 
 //  __  __           _      _
@@ -421,6 +433,8 @@ impl Model {
                 opacity: md.opacity,
                 tex:     &self.textures[md.texture_index as usize],
                 aspect:  aspect,
+                screen:  d.compose.screen,
+                mult:    d.compose.mult,
             };
 
             let stencil_test = if masks.is_empty() {
@@ -430,7 +444,7 @@ impl Model {
                 StencilTest::IfEqual{mask}
             };
             let params = &DrawParameters {
-                blend: d.blend.1,
+                blend: d.compose.blend,
                 stencil: Stencil {
                     test_clockwise:                    stencil_test,
                     test_counter_clockwise:            stencil_test,
@@ -443,7 +457,7 @@ impl Model {
 
             frame.draw(&d.vertex_buffer,
                        &d.index_buffer,
-                       &programs[d.blend.0 as usize],
+                       &programs[PV::BlendNormal as usize],
                        &uniforms,
                        params)?;
         }
@@ -759,49 +773,61 @@ impl Drawable {
         //  _| |_) | |  __/ | | | (_| |
         // (_)_.__/|_|\___|_| |_|\__,_|
 
-        let blend_normal = Blend {
-            color: BlendingFunction::Addition {
-                source:      F::SourceAlpha,
-                destination: F::OneMinusSourceAlpha,
-            },
-            alpha: BlendingFunction::Addition {
-                source:      F::One,
-                destination: F::OneMinusSourceAlpha,
-            },
-            .. Default::default()
-        };
-
-        let blend_add = Blend {
-            color: BlendingFunction::Addition {
-                source:      F::SourceAlpha,
-                destination: F::One,
-            },
-            alpha: BlendingFunction::Addition {
-                source:      F::Zero,
-                destination: F::One,
-            },
-            .. Default::default()
-        };
-
-        let blend_mult = Blend {
-            color: BlendingFunction::Addition {
-                source:      F::DestinationColor,
-                destination: F::OneMinusSourceAlpha,
-            },
-            alpha: BlendingFunction::Addition {
-                source:      F::Zero,
-                destination: F::DestinationAlpha,
-            },
-            .. Default::default()
-        };
-
-        let blend =
-            if      constant_flags.contains(BLEND_ADD)  {(PV::BlendAdd,
-                                                          blend_add)}
-            else if constant_flags.contains(BLEND_MULT) {(PV::BlendMultiply,
-                                                          blend_mult)}
-            else                                        {(PV::BlendNormal,
-                                                          blend_normal)};
+        //    ___ ___  _ __ ___  _ __   ___  ___  ___
+        //   / __/ _ \| '_ ` _ \| '_ \ / _ \/ __|/ _ \
+        //  | (_| (_) | | | | | | |_) | (_) \__ \  __/
+        // (_)___\___/|_| |_| |_| .__/ \___/|___/\___|
+        //                      |_|
+        let compose =
+            if constant_flags.contains(BLEND_ADD) {
+                Composition {
+                    mult:   [1.0, 1.0, 1.0, 1.0],
+                    screen: *drawable.screen_color,
+                    blend: Blend {
+                        color: BlendingFunction::Addition {
+                            source:      F::SourceAlpha,
+                            destination: F::One,
+                        },
+                        alpha: BlendingFunction::Addition {
+                            source:      F::Zero,
+                            destination: F::One,
+                        },
+                        .. Default::default()
+                    }
+                }
+            } else if constant_flags.contains(BLEND_MULT) {
+                Composition {
+                    mult:   *drawable.multiply_color,
+                    screen: [0.0, 0.0, 0.0, 1.0],
+                    blend: Blend {
+                        color: BlendingFunction::Addition {
+                            source:      F::DestinationColor,
+                            destination: F::OneMinusSourceAlpha,
+                        },
+                        alpha: BlendingFunction::Addition {
+                            source:      F::Zero,
+                            destination: F::One,
+                        },
+                        .. Default::default()
+                    }
+                }
+            } else {
+                Composition {
+                    mult:   [1.0, 1.0, 1.0, 1.0],
+                    screen: [0.0, 0.0, 0.0, 1.0],
+                    blend: Blend {
+                        color: BlendingFunction::Addition {
+                            source:      F::SourceAlpha,
+                            destination: F::OneMinusSourceAlpha,
+                        },
+                        alpha: BlendingFunction::Addition {
+                            source:      F::One,
+                            destination: F::OneMinusSourceAlpha,
+                        },
+                        .. Default::default()
+                    }
+                }
+            };
 
         //                       _                           _
         //    _ __ ___ _ __   __| | ___ _ __    ___  _ __ __| | ___ _ __
@@ -830,7 +856,7 @@ impl Drawable {
             vertex_buffer,
             index_buffer,
             visible,
-            blend,
+            compose,
             order,
             mask_inverted,
         })
@@ -861,6 +887,10 @@ impl Drawable {
 
         if flags.contains(ORDER_CHANGED) {self.order = drawable.render_order;}
         if flags.contains(VIS_CHANGED)   {self.visible = flags.contains(VIS);}
+        if flags.contains(BLEND_CHANGED) {
+            self.compose.screen = *drawable.screen_color;
+            self.compose.mult = *drawable.multiply_color;
+        }
     }
 }
 
