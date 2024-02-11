@@ -48,6 +48,7 @@ use xsecurelock::XSecureLock;
 
 fn main() -> Result<(), Box<dyn Error>>
 {
+    use ProgramVariant as PV;
 
     //                    __ _
     //    ___ ___  _ __  / _(_) __ _
@@ -127,21 +128,46 @@ fn main() -> Result<(), Box<dyn Error>>
         Hack::Display(display)
     };
 
-    //    _ __  _ __ ___   __ _ _ __ __ _ _ __ ___
-    //   | '_ \| '__/ _ \ / _` | '__/ _` | '_ ` _ \
-    //  _| |_) | | | (_) | (_| | | | (_| | | | | | |
-    // (_) .__/|_|  \___/ \__, |_|  \__,_|_| |_| |_|
+    //    _ __  _ __ ___   __ _ _ __ __ _ _ __ ___  ___
+    //   | '_ \| '__/ _ \ / _` | '__/ _` | '_ ` _ \/ __|
+    //  _| |_) | | | (_) | (_| | | | (_| | | | | | \__ \
+    // (_) .__/|_|  \___/ \__, |_|  \__,_|_| |_| |_|___/
     //   |_|              |___/
 
-    let program = Program::from_source(&display,
-                                       include_str!("vert.glsl"),
-                                       include_str!("frag.glsl"),
-                                       None)?;
+    let prg_background =
+        Program::from_source(&display,
+                             include_str!("shaders/bg.glsl"),
+                             include_str!("shaders/frag.glsl"),
+                             None)?;
 
-    let bg_program = Program::from_source(&display,
-                                          include_str!("bg.glsl"),
-                                          include_str!("frag.glsl"),
-                                          None)?;
+    let prg_normal =
+        Program::from_source(&display,
+                             include_str!("shaders/vert.glsl"),
+                             include_str!("shaders/frag.glsl"),
+                             None)?;
+
+    let prg_add =
+        Program::from_source(&display,
+                             include_str!("shaders/vert.glsl"),
+                             include_str!("shaders/frag.glsl"),
+                             None)?;
+
+    let prg_multiply =
+        Program::from_source(&display,
+                             include_str!("shaders/vert.glsl"),
+                             include_str!("shaders/frag.glsl"),
+                             None)?;
+
+    // Ideally I'd like to initialize array with Rc::new_zeroed() and then fill
+    // with correct indices using PV::NormalBlend etc., but this method for Rc
+    // is currently in nightly, so I just have to make sure that correct
+    // programs are at correct indices
+    let programs: [Rc<Program>; PV::Counter as usize] = [
+        Rc::new(prg_background),
+        Rc::new(prg_normal),
+        Rc::new(prg_add),
+        Rc::new(prg_multiply),
+    ];
 
     //    _                _                                   _
     //   | |__   __ _  ___| | ____ _ _ __ ___  _   _ _ __   __| |
@@ -290,7 +316,7 @@ fn main() -> Result<(), Box<dyn Error>>
 
                         frame.draw(&bg.vertex_buffer,
                                    &bg.index_buffer,
-                                   &bg_program,
+                                   &programs[PV::Background as usize],
                                    &uniforms,
                                    &Default::default())
                         .unwrap_or_else(|e| eprintln!("{e}"))
@@ -303,7 +329,7 @@ fn main() -> Result<(), Box<dyn Error>>
 
                 model
                 .draw(&mut frame,
-                      &program,
+                      &programs[PV::NormalBlend as usize],
                       aspect)
                 .unwrap_or_else(|e| eprintln!("Failed to draw model: {e}"));
 
@@ -323,6 +349,22 @@ fn main() -> Result<(), Box<dyn Error>>
             _ => {}
         }
     });
+}
+
+//  ____
+// |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___  ___
+// | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \/ __|
+// |  __/| | | (_) | (_| | | | (_| | | | | | \__ \
+// |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|___/
+//                  |___/
+
+enum ProgramVariant {
+    Background = 0,
+    NormalBlend,
+    AddBlend,
+    MultiplyBlend,
+
+    Counter
 }
 
 //  _   _            _
