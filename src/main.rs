@@ -73,10 +73,7 @@ fn main() -> Result<(), Box<dyn Error>>
 
     if path.exists() {
         eprintln!("Removing existing socket before connecting");
-        match fs::remove_file(path) {
-            Ok(r)  => r,
-            Err(e) => eprintln!("Unable to remove existing socket: {e}")
-        }
+        fs::remove_file(path)?
     }
 
     let listener = UnixListener::bind(path)?;
@@ -108,29 +105,26 @@ fn main() -> Result<(), Box<dyn Error>>
     // (_)__,_|_|___/ .__/|_|\__,_|\__, |
     //              |_|            |___/
 
-    let display = match env::var("XSCREENSAVER_WINDOW") {
-        Ok(xwin) => {
-            let xwin: u64 =
-                xwin.parse()
-                .expect("xsecurelock to provide valid window id");
-            Hack::XSecureLock(XSecureLock::new(xwin)?)
-        }
-        Err(_) => {
-            let (width, height) = config.window.size.into();
-            let title = config.window.title.clone();
-            let display =
-                Display::new(WindowBuilder::new()
-                             .with_inner_size(LogicalSize::new(width,
-                                                               height))
-                             .with_title(title)
-                             .with_decorations(false)
-                             .with_transparent(true),
-                             ContextBuilder::new()
-                             .with_vsync(true)
-                             .with_double_buffer(Some(true)),
-                             &event_loop)?;
-            Hack::Display(display)
-        }
+    let display = if let Ok(xwin) = env::var("XSCREENSAVER_WINDOW") {
+        let xwin: u64 =
+            xwin.parse()
+            .expect("xsecurelock to provide valid window id");
+        Hack::XSecureLock(XSecureLock::new(xwin)?)
+    } else {
+        let (width, height) = config.window.size.into();
+        let title = config.window.title.clone();
+        let display =
+            Display::new(WindowBuilder::new()
+                         .with_inner_size(LogicalSize::new(width,
+                                                           height))
+                         .with_title(title)
+                         .with_decorations(false)
+                         .with_transparent(true),
+                         ContextBuilder::new()
+                         .with_vsync(true)
+                         .with_double_buffer(Some(true)),
+                         &event_loop)?;
+        Hack::Display(display)
     };
 
     //    _ __  _ __ ___   __ _ _ __ __ _ _ __ ___
@@ -204,10 +198,10 @@ fn main() -> Result<(), Box<dyn Error>>
             frame.0 as f32,
             frame.1 as f32
         ];
-        let object = match &background_image {
-            Some(bg) => bg.size,
-            None     => [1., 1.]
-        };
+        let object =
+            background_image.as_ref()
+            .map(|bg| bg.size)
+            .unwrap_or([1., 1.]);
         let fit = &FitConfig::Cover;
 
         calc_aspect(object,
@@ -260,10 +254,10 @@ fn main() -> Result<(), Box<dyn Error>>
                             s.width as f32,
                             s.height as f32
                         ];
-                        let object = match &background_image {
-                            Some(bg) => bg.size,
-                            None     => [1., 1.]
-                        };
+                        let object =
+                            background_image.as_ref()
+                            .map(|bg| bg.size)
+                            .unwrap_or([1., 1.]);
                         let fit = &FitConfig::Cover;
 
                         calc_aspect(object,
