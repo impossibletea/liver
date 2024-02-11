@@ -799,14 +799,27 @@ impl Drawable {
                 Composition {
                     mult:   *drawable.multiply_color,
                     screen: [0.0, 0.0, 0.0, 1.0],
+                    // I still don't know what the issue is with the blending
+                    // I take from the original framework :(
+                    //blend: Blend {
+                    //    color: BlendingFunction::Addition {
+                    //        source:      F::DestinationColor,
+                    //        destination: F::OneMinusSourceAlpha,
+                    //    },
+                    //    alpha: BlendingFunction::Addition {
+                    //        source:      F::Zero,
+                    //        destination: F::One,
+                    //    },
+                    //    .. Default::default()
+                    //}
                     blend: Blend {
                         color: BlendingFunction::Addition {
-                            source:      F::DestinationColor,
+                            source:      F::SourceAlpha,
                             destination: F::OneMinusSourceAlpha,
                         },
                         alpha: BlendingFunction::Addition {
-                            source:      F::Zero,
-                            destination: F::One,
+                            source:      F::One,
+                            destination: F::OneMinusSourceAlpha,
                         },
                         .. Default::default()
                     }
