@@ -28,7 +28,10 @@ use cubism::{
         motion::Motion3,
     },
 };
-use crate::config::Config;
+use crate::{
+    config::Config,
+    ProgramVariant as PV,
+};
 
 const BLEND_ADD:  ConstantFlags = ConstantFlags::BLEND_ADDITIVE;
 const BLEND_MULT: ConstantFlags = ConstantFlags::BLEND_MULTIPLICATIVE;
@@ -109,7 +112,7 @@ struct Drawable {
     vertex_buffer: VertexBuffer<Vert>,
     index_buffer:  IndexBuffer<u16>,
     visible:       bool,
-    blend:         Blend,
+    blend:         PV,
     order:         i32,
     mask_inverted: bool,
 }
@@ -340,18 +343,16 @@ impl Model {
     // (_|_)  \__,_|_|  \__,_| \_/\_/
 
     pub fn draw<T>(&self,
-                   frame:   &mut T,
-                   program: &Program,
-                   aspect:  [f32; 2]) -> Result<(), Box<dyn Error>>
+                   frame:    &mut T,
+                   programs: &[Rc<Program>],
+                   aspect:   [f32; 2]) -> Result<(), Box<dyn Error>>
     where T: Surface
     {
         let drawables = self.ordered();
-        let mut iter =
-            drawables
-            .iter()
-            .filter(|d| d.visible);
 
-        while let Some(d) = iter.next() {
+        for d in drawables.iter() {
+            if !d.visible {continue}
+
             let md = self.model.drawable_at(d.index);
 
             //                      _
@@ -363,9 +364,7 @@ impl Model {
             frame.clear_stencil(0);
             let masks = md.masks;
             if !masks.is_empty() {
-                let mut masks = masks.iter();
-
-                while let Some(m) = masks.next() {
+                for m in masks {
                     let find =
                         drawables.iter()
                         .find(|d| d.index as i32 == *m);
@@ -382,15 +381,13 @@ impl Model {
                         size:    self.canvas.size,
                         origin:  self.canvas.origin,
                         scale:   self.canvas.scale,
-                        opacity: 1. as f32,
-                        tex:     &self.textures[md.texture_index as usize],
                         aspect:  aspect,
                     };
 
                     let op = StencilOperation::Replace;
                     let params = DrawParameters {
                         color_mask: (false, false, false, false),
-                        stencil:    Stencil {
+                        stencil: Stencil {
                             fail_operation_clockwise:                    op,
                             pass_depth_fail_operation_clockwise:         op,
                             depth_pass_operation_clockwise:              op,
@@ -406,7 +403,7 @@ impl Model {
 
                     frame.draw(&d.vertex_buffer,
                                &d.index_buffer,
-                               program,
+                               &programs[PV::Mask as usize],
                                &uniforms,
                                &params)?;
                 }
@@ -434,7 +431,17 @@ impl Model {
                 StencilTest::IfEqual{mask}
             };
             let params = &DrawParameters {
-                blend:   d.blend,
+                blend: Blend {
+                    color: BlendingFunction::Addition {
+                        source:      F::SourceAlpha,
+                        destination: F::OneMinusSourceAlpha,
+                    },
+                    alpha: BlendingFunction::Addition {
+                        source:      F::One,
+                        destination: F::OneMinusSourceAlpha,
+                    },
+                    .. Default::default()
+                },
                 stencil: Stencil {
                     test_clockwise:                    stencil_test,
                     test_counter_clockwise:            stencil_test,
@@ -447,7 +454,7 @@ impl Model {
 
             frame.draw(&d.vertex_buffer,
                        &d.index_buffer,
-                       program,
+                       &programs[d.blend as usize],
                        &uniforms,
                        &params)?;
         }
@@ -763,44 +770,10 @@ impl Drawable {
         //  _| |_) | |  __/ | | | (_| |
         // (_)_.__/|_|\___|_| |_|\__,_|
 
-        let blend = if constant_flags.contains(BLEND_ADD) {
-            Blend {
-                color: BlendingFunction::Addition {
-                    source:      F::SourceAlpha,
-                    destination: F::One,
-                },
-                alpha: BlendingFunction::Addition {
-                    source:      F::One,
-                    destination: F::One,
-                },
-                constant_value: (0., 0., 0., 1.),
-            }
-        } else if constant_flags.contains(BLEND_MULT) {
-            // TODO! implement proper multiplicative blending
-            Blend {
-                color: BlendingFunction::Addition {
-                    source:      F::Zero,
-                    destination: F::One,
-                },
-                alpha: BlendingFunction::Addition {
-                    source:      F::Zero,
-                    destination: F::One,
-                },
-                constant_value: (1., 1., 1., 1.),
-            }
-        } else {
-            Blend {
-                color: BlendingFunction::Addition {
-                    source:      F::SourceAlpha,
-                    destination: F::OneMinusSourceAlpha,
-                },
-                alpha: BlendingFunction::Addition {
-                    source:      F::One,
-                    destination: F::OneMinusSourceAlpha,
-                },
-                .. Default::default()
-            }
-        };
+        let blend =
+            if      constant_flags.contains(BLEND_ADD)  {PV::BlendAdd}
+            else if constant_flags.contains(BLEND_MULT) {PV::BlendMultiply}
+            else                                        {PV::BlendNormal};
 
         //                       _                           _
         //    _ __ ___ _ __   __| | ___ _ __    ___  _ __ __| | ___ _ __

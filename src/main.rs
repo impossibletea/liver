@@ -136,26 +136,32 @@ fn main() -> Result<(), Box<dyn Error>>
 
     let prg_background =
         Program::from_source(&display,
-                             include_str!("shaders/bg.glsl"),
-                             include_str!("shaders/frag.glsl"),
+                             include_str!("shaders/bg_vert.glsl"),
+                             include_str!("shaders/bg_frag.glsl"),
+                             None)?;
+
+    let prg_mask =
+        Program::from_source(&display,
+                             include_str!("shaders/mask_vert.glsl"),
+                             include_str!("shaders/mask_frag.glsl"),
                              None)?;
 
     let prg_normal =
         Program::from_source(&display,
-                             include_str!("shaders/vert.glsl"),
-                             include_str!("shaders/frag.glsl"),
+                             include_str!("shaders/normal_vert.glsl"),
+                             include_str!("shaders/normal_frag.glsl"),
                              None)?;
 
     let prg_add =
         Program::from_source(&display,
-                             include_str!("shaders/vert.glsl"),
-                             include_str!("shaders/frag.glsl"),
+                             include_str!("shaders/add_vert.glsl"),
+                             include_str!("shaders/add_frag.glsl"),
                              None)?;
 
     let prg_multiply =
         Program::from_source(&display,
-                             include_str!("shaders/vert.glsl"),
-                             include_str!("shaders/frag.glsl"),
+                             include_str!("shaders/mult_vert.glsl"),
+                             include_str!("shaders/mult_frag.glsl"),
                              None)?;
 
     // Ideally I'd like to initialize array with Rc::new_zeroed() and then fill
@@ -164,6 +170,7 @@ fn main() -> Result<(), Box<dyn Error>>
     // programs are at correct indices
     let programs: [Rc<Program>; PV::Counter as usize] = [
         Rc::new(prg_background),
+        Rc::new(prg_mask),
         Rc::new(prg_normal),
         Rc::new(prg_add),
         Rc::new(prg_multiply),
@@ -311,7 +318,6 @@ fn main() -> Result<(), Box<dyn Error>>
                         let uniforms = uniform!{
                             tex: &bg.texture,
                             aspect: bg_aspect,
-                            opacity: 1. as f32,
                         };
 
                         frame.draw(&bg.vertex_buffer,
@@ -329,7 +335,7 @@ fn main() -> Result<(), Box<dyn Error>>
 
                 model
                 .draw(&mut frame,
-                      &programs[PV::NormalBlend as usize],
+                      &programs,
                       aspect)
                 .unwrap_or_else(|e| eprintln!("Failed to draw model: {e}"));
 
@@ -358,11 +364,13 @@ fn main() -> Result<(), Box<dyn Error>>
 // |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|___/
 //                  |___/
 
+#[derive(Copy, Clone)]
 enum ProgramVariant {
     Background = 0,
-    NormalBlend,
-    AddBlend,
-    MultiplyBlend,
+    Mask,
+    BlendNormal,
+    BlendAdd,
+    BlendMultiply,
 
     Counter
 }
