@@ -117,10 +117,9 @@ unsafe impl Backend for XSecureLockBack {
    {
        let geometry = self.xconn.get_geometry(self.xwin);
 
-       match geometry {
-           Ok(g)  => (g.width, g.height),
-           Err(_) => (0, 0)
-       }
+       geometry
+       .map(|g| (g.width, g.height))
+       .unwrap_or((0, 0))
    }
 
    fn is_current(&self) -> bool {self.context.borrow().is_current()}

@@ -46,43 +46,34 @@ impl Message {
     {
         let mut message = input.split(':');
 
-        match message.next() {
-            Some(action) => match action {
-                "toggle" => Some(Message::Toggle),
-                "pause"  => Some(Message::Pause),
-                "play"   => Some(Message::Play),
-                "exit"   => Some(Message::Exit),
-                "queue"  => {
-                    let first = match message.next() {
-                        Some(f) => f,
-                        None    => return None
-                    };
-                    let result = match message.next() {
-                        Some(second) => (first.to_string(),
-                                         second.to_string()),
-                        None         => ("".to_string(),
-                                         first.to_string())
-                    };
+        match message.next()? {
+            "toggle" => Some(Message::Toggle),
+            "pause"  => Some(Message::Pause),
+            "play"   => Some(Message::Play),
+            "exit"   => Some(Message::Exit),
+            "queue"  => {
+                let first = message.next()?;
+                let result = match message.next() {
+                    Some(second) => (first.to_string(),
+                                     second.to_string()),
+                    None         => ("".to_string(),
+                                     first.to_string())
+                };
 
-                    Some(Message::QueueMotion(result))
-                }
-                "set"    => {
-                    let first = match message.next() {
-                        Some(f) => f,
-                        None    => return None
-                    };
-                    let result = match message.next() {
-                        Some(second) => (first.to_string(),
-                                         second.to_string()),
-                        None         => ("".to_string(),
-                                         first.to_string())
-                    };
-
-                    Some(Message::SetMotion(result))
-                }
-                _ => None
+                Some(Message::QueueMotion(result))
             }
-            None => None
+            "set"    => {
+                let first = message.next()?;
+                let result = match message.next() {
+                    Some(second) => (first.to_string(),
+                                     second.to_string()),
+                    None         => ("".to_string(),
+                                     first.to_string())
+                };
+
+                Some(Message::SetMotion(result))
+            }
+            _ => None
         }
     }
 }

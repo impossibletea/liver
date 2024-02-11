@@ -318,10 +318,10 @@ fn cli_motions_open(c: &mut Config,
                 s.next()
                 .expect("motion")
                 .to_string();
-            let c = match s.next() {
-                Some(c) => c.to_string(),
-                None    => "".to_string()
-            };
+            let c = 
+                s.next()
+                .unwrap_or("")
+                .to_string();
 
             (c, m)
         })
@@ -348,10 +348,10 @@ fn cli_motion_idle(c: &mut Config,
         split.next()
         .expect("motion")
         .to_string();
-    let class = match split.next() {
-        Some(c) => c.to_string(),
-        None    => "".to_string()
-    };
+    let class =
+        split.next()
+        .unwrap_or("")
+        .to_string();
 
     c.model.motions.idle = Some((class, id));
 

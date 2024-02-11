@@ -17,8 +17,8 @@ fn main() -> Result<(), Box<dyn Error>>
         UnixStream::connect(SOCKET_ADDR)
         .map_err(|e| format!("Failed to connect to socket: {e}"))?;
 
-    match args.next() {
-        Some(arg) => match arg.as_str() {
+    if let Some(arg) = args.next() {
+        match arg.as_str() {
             "toggle" => write!(&mut stream, "{}", Message::Toggle)?,
             "pause"  => write!(&mut stream, "{}", Message::Pause)?,
             "play"   => write!(&mut stream, "{}", Message::Play)?,
@@ -54,8 +54,7 @@ fn main() -> Result<(), Box<dyn Error>>
             "help"   => println!("{}", message::USAGE),
             _        => eprintln!("Command `{}` is not recognised", arg)
         }
-        None => eprintln!("{}", message::USAGE)
-    };
+    } else {eprintln!("{}", message::USAGE)};
 
     Ok(())
 }

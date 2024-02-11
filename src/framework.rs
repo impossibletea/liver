@@ -516,10 +516,7 @@ impl Model {
     pub fn play(&mut self) -> Option<()>
     {
         self.queue.is_paused = false;
-        let current = match self.queue.current.as_ref() {
-            Some(c) => c,
-            None    => return None
-        };
+        let current = self.queue.current.as_ref()?;
 
         self.motions
         .get_mut(current.0.as_str())
@@ -536,10 +533,7 @@ impl Model {
     pub fn pause(&mut self) -> Option<()>
     {
         self.queue.is_paused = true;
-        let current = match self.queue.current.as_ref() {
-            Some(c) => c,
-            None    => return None
-        };
+        let current = self.queue.current.as_ref()?;
 
         self.motions
         .get_mut(current.0.as_str())
@@ -570,10 +564,7 @@ impl Model {
     {
         self.queue.is_paused = true;
         self.queue.elapsed = 0.;
-        let current = match self.queue.current.as_ref() {
-            Some(c) => c,
-            None    => return None
-        };
+        let current = self.queue.current.as_ref()?;
 
         self.motions
         .get_mut(current.0.as_str())
