@@ -66,6 +66,7 @@ color = [
 image = ''
 
 # Toml does not allow null, but the idea is that there is no default file
+
 [model]
 file = ''
 
