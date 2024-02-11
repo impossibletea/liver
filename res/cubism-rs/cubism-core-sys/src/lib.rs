@@ -17,6 +17,15 @@ pub struct csmVector2 {
     pub y: c_float,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct csmVector4 {
+    pub x: c_float,
+    pub y: c_float,
+    pub z: c_float,
+    pub w: c_float,
+}
+
 extern "C" {
     pub fn csmGetVersion() -> csmVersion;
 }

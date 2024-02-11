@@ -15,6 +15,7 @@ Made possible with incredible wrapper[^cubism-rs] for Cubism SDK.
 > * Motions in my models are under the `""` key in `model3.json`, so the
 >   wrapper did not parse them in `motion_references`
 > * Restricted Beziers in `motion3.json` files
+> * Added support for getting screen and multiply colors
 
 ## Installation
 
