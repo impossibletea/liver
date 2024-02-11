@@ -5,8 +5,8 @@ use std::fmt::{
     Formatter,
 };
 
-pub const SOCKET_ADDR: &'static str = "/run/user/1000/liver.sock";
-pub const USAGE:       &'static str =
+pub const SOCKET_ADDR: &str = "/run/user/1000/liver.sock";
+pub const USAGE:       &str =
 "
 Usage:
     queue [class] <motion>  queue <motion> from <class>

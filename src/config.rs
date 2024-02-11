@@ -3,8 +3,8 @@ use std::error::Error;
 use serde::{Serialize, Deserialize};
 
 pub mod constant {
-    pub const APP_NAME:   &'static str = "liver";
-    pub const CONFIG:     &'static str = "config";
+    pub const APP_NAME: &str = "liver";
+    pub const CONFIG:   &str = "config";
 }
 use constant::*;
 

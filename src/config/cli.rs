@@ -114,11 +114,11 @@ pub fn cli_args(toml: &mut Config) -> Result<String, Box<dyn Error>>
                 Err(e) => {
                     eprintln!("{e}");
                     eprintln!("Usage: {}", cli.usage);
-                    return Err(format!("Error parsing arguments").into())
+                    return Err("Error parsing arguments".into())
                 }
             }
             None => {
-                if arg.starts_with("-") {
+                if arg.starts_with('-') {
                     eprintln!("Argument {arg} not supported");
                 } else {
                     toml.model.file = Some(arg);
@@ -140,14 +140,14 @@ pub fn cli_args(toml: &mut Config) -> Result<String, Box<dyn Error>>
 fn cli_help(_: &mut Config,
             _: &mut Args) -> Result<(), Box<dyn Error>>
 {
-    println!("");
+    println!();
     println!("Usage:");
     println!("    {} [flags] [file.model3.json]", APP_NAME);
-    println!("");
+    println!();
     println!("Flags:");
     CLI_ARGS.iter()
     .for_each(|cli| println!("    {cli}"));
-    println!("");
+    println!();
     process::exit(0)
 }
 

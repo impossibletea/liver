@@ -92,7 +92,7 @@ fn main() -> Result<(), Box<dyn Error>>
                 input
             })
             .and_then(|i| Message::parse(i)
-                          .ok_or(format!("Failed to parse message")))
+                          .ok_or("Failed to parse message".to_string()))
             .and_then(|m| proxy.send_event(m)
                           .map_err(|e| format!("Failed to send message: {e}")))
             .unwrap_or_else(|e| eprintln!("{e}"))
@@ -265,6 +265,7 @@ fn main() -> Result<(), Box<dyn Error>>
                     Message::Toggle         => model.toggle(),
                     Message::Pause          => model.pause(),
                     Message::Play           => model.play(),
+                    #[allow(clippy::unit_arg)]
                     Message::Exit           => Some(control_flow.set_exit()),
                 }.unwrap_or(()),
             Event::WindowEvent {event, ..} => match event {
@@ -428,7 +429,7 @@ impl Background {
         let bg_path = expanduser::expanduser(bg)?;
 
         let image =
-            image::open(&bg_path)?
+            image::open(bg_path)?
             .to_rgba8();
         let image_dimensions = image.dimensions();
         let (x, y) = (image_dimensions.0 as f32,
