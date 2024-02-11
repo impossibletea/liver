@@ -8,10 +8,7 @@ uniform float opacity;
 void main()
 {
 	vec4 texture = texture(tex, frag_uv);
-	vec4 color = vec4(
-		texture.xyz,
-		texture.w * opacity
-	);
+	vec4 color = vec4(1.0, 1.0, 1.0, 1.0);
 	gl_FragColor = color;
 }
 

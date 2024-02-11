@@ -107,12 +107,14 @@ struct CanvasInfo {
 // | |_| | | | (_| |\ V  V / (_| | |_) | |  __/
 // |____/|_|  \__,_| \_/\_/ \__,_|_.__/|_|\___|
 
+type Composition = (PV, Blend);
+
 struct Drawable {
     index:         usize,
     vertex_buffer: VertexBuffer<Vert>,
     index_buffer:  IndexBuffer<u16>,
     visible:       bool,
-    blend:         PV,
+    blend:         Composition,
     order:         i32,
     mask_inverted: bool,
 }
@@ -431,17 +433,7 @@ impl Model {
                 StencilTest::IfEqual{mask}
             };
             let params = &DrawParameters {
-                blend: Blend {
-                    color: BlendingFunction::Addition {
-                        source:      F::SourceAlpha,
-                        destination: F::OneMinusSourceAlpha,
-                    },
-                    alpha: BlendingFunction::Addition {
-                        source:      F::One,
-                        destination: F::OneMinusSourceAlpha,
-                    },
-                    .. Default::default()
-                },
+                blend: d.blend.1,
                 stencil: Stencil {
                     test_clockwise:                    stencil_test,
                     test_counter_clockwise:            stencil_test,
@@ -454,7 +446,7 @@ impl Model {
 
             frame.draw(&d.vertex_buffer,
                        &d.index_buffer,
-                       &programs[d.blend as usize],
+                       &programs[d.blend.0 as usize],
                        &uniforms,
                        &params)?;
         }
@@ -770,10 +762,49 @@ impl Drawable {
         //  _| |_) | |  __/ | | | (_| |
         // (_)_.__/|_|\___|_| |_|\__,_|
 
+        let blend_normal = Blend {
+            color: BlendingFunction::Addition {
+                source:      F::SourceAlpha,
+                destination: F::OneMinusSourceAlpha,
+            },
+            alpha: BlendingFunction::Addition {
+                source:      F::One,
+                destination: F::OneMinusSourceAlpha,
+            },
+            .. Default::default()
+        };
+
+        let blend_add = Blend {
+            color: BlendingFunction::Addition {
+                source:      F::SourceAlpha,
+                destination: F::One,
+            },
+            alpha: BlendingFunction::Addition {
+                source:      F::Zero,
+                destination: F::One,
+            },
+            .. Default::default()
+        };
+
+        let blend_mult = Blend {
+            color: BlendingFunction::Addition {
+                source:      F::DestinationColor,
+                destination: F::OneMinusSourceAlpha,
+            },
+            alpha: BlendingFunction::Addition {
+                source:      F::Zero,
+                destination: F::DestinationAlpha,
+            },
+            .. Default::default()
+        };
+
         let blend =
-            if      constant_flags.contains(BLEND_ADD)  {PV::BlendAdd}
-            else if constant_flags.contains(BLEND_MULT) {PV::BlendMultiply}
-            else                                        {PV::BlendNormal};
+            if      constant_flags.contains(BLEND_ADD)  {(PV::BlendAdd,
+                                                          blend_add)}
+            else if constant_flags.contains(BLEND_MULT) {(PV::BlendMultiply,
+                                                          blend_mult)}
+            else                                        {(PV::BlendNormal,
+                                                          blend_normal)};
 
         //                       _                           _
         //    _ __ ___ _ __   __| | ___ _ __    ___  _ __ __| | ___ _ __
