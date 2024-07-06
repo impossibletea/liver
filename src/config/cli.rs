@@ -272,7 +272,6 @@ fn cli_bg_color(c: &mut Config,
     .map(|c| c as f32 / max as f32)
     .enumerate()
     .for_each(|(i, comp)| {
-        dbg!(&comp);
         c.window.bg.color[i] = comp
     });
 
@@ -318,7 +317,7 @@ fn cli_motions_open(c: &mut Config,
                 s.next()
                 .expect("motion")
                 .to_string();
-            let c = 
+            let c =
                 s.next()
                 .unwrap_or("")
                 .to_string();
